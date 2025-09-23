@@ -1,0 +1,9 @@
+{
+  "id" : "6lekfldfumax7zu7ttv3",
+  "name" : "swe_gnn_forecast",
+  "description" : "Train and use GNN models to predict SWE",
+  "owner" : "111111",
+  "confidential" : "FALSE",
+  "edges" : "[{\"source\":{\"title\":\"data_process.py\",\"id\":\"pyo4uw-cE3vM\",\"x\":283,\"y\":261,\"color\":\"white\",\"status\":\"none\"},\"target\":{\"title\":\"model_train.py\",\"id\":\"zpoycs-c862C\",\"x\":365,\"y\":387,\"color\":\"white\",\"status\":\"none\"}},{\"source\":{\"title\":\"generate_grid.py\",\"id\":\"0k5d39-MpCpG\",\"x\":451,\"y\":261,\"color\":\"white\",\"status\":\"none\",\"skip\":true},\"target\":{\"title\":\"model_train.py\",\"id\":\"zpoycs-c862C\",\"x\":365,\"y\":387,\"color\":\"white\",\"status\":\"none\"}},{\"source\":{\"title\":\"data_merge.py\",\"id\":\"a6v1ob-w9k7l\",\"x\":280,\"y\":122,\"skip\":true,\"color\":\"white\",\"status\":\"none\"},\"target\":{\"title\":\"data_process.py\",\"id\":\"pyo4uw-cE3vM\",\"x\":283,\"y\":261,\"color\":\"white\",\"status\":\"none\"}},{\"source\":{\"title\":\"model_train.py\",\"id\":\"zpoycs-c862C\",\"x\":365,\"y\":387,\"color\":\"white\",\"status\":\"none\"},\"target\":{\"title\":\"model_predic.py\",\"id\":\"xjyrba-CV9gx\",\"x\":529,\"y\":389,\"color\":\"white\",\"status\":\"none\"}}]",
+  "nodes" : "[{\"title\":\"data_process.py\",\"id\":\"pyo4uw-cE3vM\",\"x\":283,\"y\":261,\"color\":\"white\",\"status\":\"none\"},{\"title\":\"generate_grid.py\",\"id\":\"0k5d39-MpCpG\",\"x\":451,\"y\":261,\"color\":\"white\",\"status\":\"none\",\"skip\":true},{\"title\":\"model_train.py\",\"id\":\"zpoycs-c862C\",\"x\":365,\"y\":387,\"color\":\"white\",\"status\":\"none\"},{\"title\":\"data_merge.py\",\"id\":\"a6v1ob-w9k7l\",\"x\":280,\"y\":122,\"skip\":true,\"color\":\"white\",\"status\":\"none\"},{\"title\":\"model_predic.py\",\"id\":\"xjyrba-CV9gx\",\"x\":529,\"y\":389,\"color\":\"white\",\"status\":\"none\"}]"
+}
