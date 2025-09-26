@@ -10,7 +10,7 @@ from torch_geometric.data import Data
 from sklearn.metrics import mean_squared_error, r2_score
 
 train_file_path = '/groups/ESS/whung/swe_gnn/data/all_points_final_merged_training_snodas_mask_resnet_all_batch.csv'
-test_file_path = '/groups/ESS/whung/swe_gnn/data/testing_all_ready_2025-01-15_merged.csv_snodas_mask.csv'
+test_file_path = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_2025-02-26_merged.csv_snodas_mask.csv'
 #test_file_path = '/groups/ESS/whung/swe_gnn/data/test_data_predicted_latest_2025-01-15.csv_snodas_mask.csv'
 
 chunksize = 500000
@@ -147,6 +147,7 @@ test_merged_nodes['cos_lon'] = np.cos(test_merged_nodes['lon_rad'])
 # 🧪 Final feature selection
 exclude = ['grid_id', 'lat', 'lon', 'lat_rad', 'lon_rad', 'date', 'day_of_year', 'swe_value']
 final_columns = [col for col in train_merged_nodes.columns if col not in exclude]
+final_columns = np.sort(final_columns).tolist()   # make sure columns always have the same order 
 #final_columns += ['sin_lat', 'cos_lat', 'sin_lon', 'cos_lon', 'sin_day', 'cos_day']
 print(f'The final columns are ({len(final_columns)}): {final_columns}')
 
@@ -222,16 +223,16 @@ def build_graph(merged_nodes, df_scaled, is_test=False):
 
     return graph_data
 
-print("-----------------------<<< Building training graph >>>-----------------------\n")
-train_graph_data = build_graph(train_merged_nodes, train_df_scaled, is_test=False)
+#print("-----------------------<<< Building training graph >>>-----------------------\n")
+#train_graph_data = build_graph(train_merged_nodes, train_df_scaled, is_test=False)
 print("\n-----------------------<<< Building test graph >>>-----------------------\n")
 test_graph_data = build_graph(test_merged_nodes, test_df_scaled, is_test=True)
 
 # 💾 Save graph
-train_save_path = '/groups/ESS/whung/swe_gnn/data/gnn_training_data.pt'
-torch.save(train_graph_data, train_save_path)
-print(f"\n Graph data saved at: {train_save_path}")
+#train_save_path = '/groups/ESS/whung/swe_gnn/data/gnn_training_data.pt'
+#torch.save(train_graph_data, train_save_path)
+#print(f"\n Graph data saved at: {train_save_path}")
 
-test_save_path = '/groups/ESS/whung/swe_gnn/data/gnn_testing_data.pt'
+test_save_path = '/groups/ESS/whung/swe_gnn/data/gnn_testing_data_2025-02-26.pt'
 torch.save(test_graph_data, test_save_path)
 print(f"\n Graph data saved at: {test_save_path}")

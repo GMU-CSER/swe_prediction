@@ -2,8 +2,8 @@
 import numpy as np
 import pandas as pd
 
-data_dir = '/groups/ESS/whung/swe_gnn/data'
-target_date = '2025-01-15'
+data_dir = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask'
+target_date = '2025-02-19'
 target_date_dt = pd.to_datetime(target_date, format='%Y-%m-%d')
 
 required_columns = ['SWE', 'air_temperature_tmmn', 'potential_evapotranspiration', 'mean_vapor_pressure_deficit', 'relative_humidity_rmax', 'relative_humidity_rmin', 'precipitation_amount', 'air_temperature_tmmx', 'wind_speed', 'fsca']

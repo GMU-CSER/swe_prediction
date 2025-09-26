@@ -12,8 +12,8 @@ from torch_geometric.loader import NeighborLoader
 
 saved_model_mseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_mseloss.pth'
 saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_sweloss.pth'
-test_file = '/groups/ESS/whung/swe_gnn/data/testing_all_ready_2025-01-15_merged.csv_snodas_mask.csv'
-test_file_pt = '/groups/ESS/whung/swe_gnn/data/gnn_testing_data.pt'
+test_file = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_2025-01-15_merged.csv_snodas_mask.csv'
+test_file_pt = '/groups/ESS/whung/swe_gnn/data/gnn_testing_data_2025-01-15.pt'
 
 with open('/groups/ESS/whung/swe_gnn/data/scaler.pkl','rb') as f:
     scaler = pickle.load(f)
@@ -65,7 +65,7 @@ def plot_prediction_map(data, model_option, pic_path):
     cb.outline.set_linewidth(3)
     cb.ax.tick_params(labelsize=24)
 
-    plt.savefig(pic_path+'/swe_prediction.png')
+    plt.savefig(f'{pic_path}/swe_prediction_{date}.png')
     plt.close()
 
 def main():
@@ -108,18 +108,21 @@ def main():
         if hasattr(test_data_pt, key):
             print(f"{key}: {getattr(test_data_pt, key)}")
 
-    ## extract lat/lon from graph (use cos_lat/cos_lon)
+    ## extract lat/lon/elv from graph (use cos_lat/cos_lon/Elevation)
+    ## check "final column" in the data process script for indexing
     print('\n---- Extracting original lat/lon...')
     pt_value = test_data_pt.x.numpy()
     pt_value_ori = scaler.inverse_transform(pt_value)
-    scaled_lon = pt_value_ori[:, -1]
-    scaled_lat = pt_value_ori[:, -3]
+    scaled_lon = pt_value_ori[:, 24]
+    scaled_lat = pt_value_ori[:, 23]
     lon = -1 * np.rad2deg(np.arccos(scaled_lon))   # arccos always returns positvie values
     lat = np.rad2deg(np.arccos(scaled_lat))
+    elv = pt_value_ori[:, 3]
     print('Scaled lon:', scaled_lon)
     print('Scaled lat:', scaled_lat)
     print('Original lon:', lon)
     print('Original lat:', lat)
+    print('Original elv:', elv)
 
     ## read trained model and make prediction
     models = {
@@ -145,7 +148,11 @@ def main():
         output[f"predicted_swe_{model_name}"] = prediction
 
     print('\n---- All predictions')
-    pred_data = pd.DataFrame(data={'lon': lon, 'lat': lat, 'date': np.repeat(date, len(lon))})
+    pred_data = pd.DataFrame(data={
+        'lon': np.round(lon, 3),
+        'lat': np.round(lat, 2),
+        'Elevation': elv,
+        'date': np.repeat(date, len(lon))})
     for item in output:
         pred_data[item] = output[item]
     print(pred_data)
