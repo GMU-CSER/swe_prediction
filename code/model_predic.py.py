@@ -1,8 +1,6 @@
 
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-import matplotlib.pyplot as plt
 
 from sklearn.preprocessing import StandardScaler
 
@@ -10,14 +8,17 @@ import torch, pickle
 from model_train import GCN_Model
 from torch_geometric.loader import NeighborLoader
 
+from eval_util import plot_prediction_map
+
 saved_model_mseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_mseloss.pth'
 saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_sweloss.pth'
+#saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_v2.pth'
+saved_model_rmseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_rmseloss.pth'
 test_file = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_2025-01-15_merged.csv_snodas_mask.csv'
 test_file_pt = '/groups/ESS/whung/swe_gnn/data/gnn_testing_data_2025-01-15.pt'
 
 with open('/groups/ESS/whung/swe_gnn/data/scaler.pkl','rb') as f:
     scaler = pickle.load(f)
-coast = gpd.read_file('/groups/ESS/whung/shp_files/ne_10m_coastline/ne_10m_coastline.shp')
 
 model_params = {
     'in_channels': 86,  # number of input columns
@@ -32,41 +33,6 @@ def make_prediction(model: torch.nn.Module, input_data: torch.tensor) -> np.floa
         pred = model(input_data)
     pred = pred.numpy()
     return pred
-
-def plot_prediction_map(data, model_option, pic_path):
-    date = data['date'][0]
-    lat = np.array(data['lat'])
-    lon = np.array(data['lon'])
-    swe = np.array(data[f'predicted_swe_{model_option}'])
-    swe[swe < 0] = 0
-
-    fig, ax = plt.subplots(figsize=(15, 7))
-    h = ax.get_position()
-    ax.set_position([h.x0-0.04, h.y0+0.06, h.width+0.06, h.height])
-    for axis in ['top','bottom','left','right']:
-        ax.spines[axis].set_linewidth(3)
-    ax.tick_params(labelsize=24)
-
-    plt.title(f'{date} SWE Prediction from {model_option} Model', fontsize=24)
-    coast.plot(ax=ax, linewidth=1, color='k')
-
-    cs = plt.scatter(lon, lat, c=swe, s=10, marker='.', cmap='turbo', vmin=0, vmax=10)
-
-    plt.xlim([-130, -60])
-    plt.xticks(np.arange(-130, -60+1, 10))
-    plt.ylim([25, 50])
-    plt.yticks(np.arange(25, 50+1, 5))
-    plt.grid(linewidth=1, linestyle=':')
-
-    cbax = fig.add_axes([h.x0-0.04, h.y0+0.03, h.width+0.06, 0.02])
-    cb   = plt.colorbar(cs, extend='max', orientation='horizontal', cax=cbax)
-    #cb.set_ticks()
-    cb.set_label('SWE value', fontsize=24, fontweight='bold')
-    cb.outline.set_linewidth(3)
-    cb.ax.tick_params(labelsize=24)
-
-    plt.savefig(f'{pic_path}/swe_prediction_{date}.png')
-    plt.close()
 
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -111,23 +77,26 @@ def main():
     ## extract lat/lon/elv from graph (use cos_lat/cos_lon/Elevation)
     ## check "final column" in the data process script for indexing
     print('\n---- Extracting original lat/lon...')
-    pt_value = test_data_pt.x.numpy()
+    pt_value = test_data_pt.x.cpu().numpy()
     pt_value_ori = scaler.inverse_transform(pt_value)
     scaled_lon = pt_value_ori[:, 24]
     scaled_lat = pt_value_ori[:, 23]
     lon = -1 * np.rad2deg(np.arccos(scaled_lon))   # arccos always returns positvie values
     lat = np.rad2deg(np.arccos(scaled_lat))
     elv = pt_value_ori[:, 3]
+    fsca = pt_value_ori[:, 25]
     print('Scaled lon:', scaled_lon)
     print('Scaled lat:', scaled_lat)
     print('Original lon:', lon)
     print('Original lat:', lat)
     print('Original elv:', elv)
+    print('Original fsca:', fsca)
 
     ## read trained model and make prediction
     models = {
         'GCN_MSELoss': torch.load(saved_model_mseloss, map_location=device),
-        'GCN_SWELoss': torch.load(saved_model_sweloss, map_location=device)
+        'GCN_SWELoss': torch.load(saved_model_sweloss, map_location=device),
+        'GCN_RMSELoss': torch.load(saved_model_rmseloss, map_location=device)
     }
 
     output = {}
@@ -152,6 +121,7 @@ def main():
         'lon': np.round(lon, 3),
         'lat': np.round(lat, 2),
         'Elevation': elv,
+        'fsca': fsca,
         'date': np.repeat(date, len(lon))})
     for item in output:
         pred_data[item] = output[item]
@@ -159,11 +129,14 @@ def main():
 
     print('\n---- Saving to csv file...')
     pred_data.to_csv(test_file[:-4]+'_pred.csv', index=False)
+    #pred_data.to_csv(test_file[:-4]+'_pred_v2.csv', index=False)
     print('---- Prediction saved!')
 
     print('\n---- Plotting prediction maps...')
-    plot_prediction_map(pred_data, 'GCN_MSELoss', '/groups/ESS/whung/swe_gnn/results_mseloss')
-    plot_prediction_map(pred_data, 'GCN_SWELoss', '/groups/ESS/whung/swe_gnn/results_sweloss')
+    plot_prediction_map(pred_data, 'GCN_MSELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_mseloss')
+    plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_sweloss')
+    #plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_v2')
+    plot_prediction_map(pred_data, 'GCN_RMSELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_rmseloss')
     print('---- Map saved!')
 
 

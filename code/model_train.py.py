@@ -80,7 +80,6 @@ class SWELoss(nn.Module):
     - hypsometry_weight: Hypsome-SWE 物理项权重
     - elevation_feature_index: 高程在 `x` 中的列索引；若为 None，将尝试从
       `batch.elevation` 或 `batch.elev` 属性读取。
-    - basin_id_attr: 承载流域/分区 id 的属性名，默认 'grid_id'（与现有数据保持一致）。
     - area_feature_index: 每个节点网格面积在 `x` 中的列索引；缺省时按等面积处理。
     - num_bins: 高程分箱数。
     - reference_curves: {basin_id: Tensor[num_bins]} 的参考累计曲线（0-1 归一）。
@@ -101,45 +100,52 @@ class SWELoss(nn.Module):
         self.hypsometry_weight = hypsometry_weight
         self.elevation_feature_index = elevation_feature_index
         self.area_feature_index = area_feature_index
-        self.basin_id_attr = basin_id_attr
         self.num_bins = num_bins
         self.reference_curves = reference_curves or {}
 
         self._mse = nn.MSELoss()
         self._warned_missing_context = False
 
-    def set_reference_curves(self, reference_curves: Dict[int, torch.Tensor]):
-        self.reference_curves = reference_curves or {}
-
-    def _get_elevation(self, batch: Data, seeds: int) -> torch.Tensor:
+    def _get_elevation(self, batch: Data, seeds: int, index: int) -> torch.Tensor:
         # 优先从属性读取
-        elev = None
-        if hasattr(batch, 'elevation'):
-            elev = getattr(batch, 'elevation')
-        elif hasattr(batch, 'elev'):
-            elev = getattr(batch, 'elev')
-        elif self.elevation_feature_index is not None and hasattr(batch, 'x'):
-            elev = batch.x[:seeds, self.elevation_feature_index]
-        # 若 attr 是张量但包含所有节点，裁剪前 seeds
-        if isinstance(elev, torch.Tensor) and elev.dim() >= 1:
-            return elev[:seeds].float()
-        return None
+        return batch.x[:seeds, index]
 
     def _get_area(self, batch: Data, seeds: int) -> torch.Tensor:
-        area = None
-        if hasattr(batch, 'cell_area'):
-            area = getattr(batch, 'cell_area')
-        elif self.area_feature_index is not None and hasattr(batch, 'x'):
-            area = batch.x[:seeds, self.area_feature_index]
-        if isinstance(area, torch.Tensor) and area.dim() >= 1:
-            return area[:seeds].float()
         # 默认等面积
         return torch.ones(seeds, device=batch.x.device, dtype=torch.float32)
+
+    def _weighted_rmse(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        count0 = torch.sum(y_true == 0).item()
+        count1 = torch.sum((y_true > 0) & (y_true <= 25)).item()
+        count2 = torch.sum(y_true > 25).item()
+
+        total_count = count0 + count1 + count2
+        weight0 = total_count / (count0 + 1e-8)
+        weight1 = total_count / (count1 + 1e-8)
+        weight2 = total_count / (count2 + 1e-8)
+
+        weights = torch.ones_like(y_true)
+        weights[y_true == 0] = weight0
+        weights[(y_true > 0) & (y_true <= 25)] = weight1
+        weights[y_true > 25] =  weight2
+        #print(weight0, weight1, weight2)
+
+        # normalization to avoid heavy weight on high values
+        weights = weights / torch.mean(weights)
+        loss = weights * (y_pred - y_true) ** 2
+        return torch.sqrt(torch.mean(loss))
+
+    def _smooth_weighted_rmse(self, y_pred: torch.Tensor, y_true: torch.Tensor, alpha: float, beta: float) -> torch.Tensor:
+        weights = 1.0 + alpha * torch.exp(beta * y_true)
+        weights = torch.clamp(weights, max=30.0)
+        weights = weights / torch.mean(weights)
+        loss = weights * (y_pred - y_true) ** 2
+        return torch.sqrt(torch.mean(loss))
 
     def _compute_cumulative_curve(
         self,
         elevation: torch.Tensor,
-        swe_volume: torch.Tensor,
+        swe_volume: torch.Tensor, 
         num_bins: int,
     ) -> torch.Tensor:
         # 以 batch 内 min-max 建立分箱，得到累计体积分布（0-1 归一）
@@ -148,84 +154,91 @@ class SWELoss(nn.Module):
         # 防止边界相等
         if torch.isclose(elev_min, elev_max):
             elev_max = elev_min + 1.0
-        bin_edges = torch.linspace(elev_min, elev_max, steps=num_bins, device=elevation.device)
+        bin_edges = torch.linspace(elev_min, elev_max, steps=num_bins + 1, device=elevation.device)
 
-        # 为每个 bin 计算累计体积（<= 当前边界）
-        cumulative = []
-        total_volume = torch.sum(swe_volume) + 1e-8
-        for edge in bin_edges:
-            mask = elevation <= edge
-            cumulative.append(torch.sum(swe_volume[mask]) / total_volume)
-        return torch.stack(cumulative, dim=0).clamp(0.0, 1.0)
+        total_volume = torch.sum(swe_volume)
+        if total_volume.item() == 0.0:
+            total_volume = torch.tensor(1e-8, device=swe_volume.device)  # Prevent division by zero
+
+        # Compute volume for each bin
+        bin_volumes = []
+        for i in range(1, len(bin_edges)):
+            mask = (elevation > bin_edges[i - 1]) & (elevation <= bin_edges[i])
+            bin_volumes.append(torch.sum(swe_volume[mask]))
+        bin_volumes = torch.stack(bin_volumes)
+
+        # Compute normalized cumulative curve
+        cumulative_curve = torch.cumsum(bin_volumes, dim=0) / total_volume
+
+        return cumulative_curve
 
     def _hypsometry_discrepancy(
         self,
         y_pred: torch.Tensor,
+        y_true: torch.Tensor,
         batch: Data,
         seeds: int,
     ) -> torch.Tensor:
-        # 需要流域 id 与高程
-        if not hasattr(batch, self.basin_id_attr):
-            return torch.tensor(0.0, device=y_pred.device)
-        basin_ids = getattr(batch, self.basin_id_attr)[:seeds]
-        elevation = self._get_elevation(batch, seeds)
+        """
+        Compute hypsometry discrepancy loss between predicted SWE-volume distribution and reference cumulative elevation curves.
+        Prints detailed debug information to console.
+        """
+    
+        #print("\n[HypsometryDiscrepancy] >>> Starting computation")
+        #print(f"  -> y_pred shape: {tuple(y_pred.shape)}, seeds: {seeds}")
+    
+        # Get elevation
+        elevation = self._get_elevation(batch, seeds, self.elevation_feature_index)
         if elevation is None:
+            print("  [Skip] Elevation data unavailable.")
             return torch.tensor(0.0, device=y_pred.device)
+        #print(f"  -> Elevation shape: {tuple(elevation.shape)}")
+    
+        # Get area
         area = self._get_area(batch, seeds)
-
-        # 将 SWE 预测转体积（比例）= SWE * area；无需单位统一，后续归一化
-        # 使用可微分的体积近似（不 detach），以便物理项反向传播
+        #print(f"  -> Area shape: {tuple(area.shape)}")
+    
+        # SWE volume
         swe_volume = y_pred * area
+        swe_volume_true = y_true * area
+        #print("  -> SWE volume computed (kept differentiable).")
+    
+        # Compute cumulative curve
+        curve_pred = self._compute_cumulative_curve(
+            elevation, swe_volume, self.num_bins
+        )
+        #print(f"    -> Predicted curve computed (len={curve_pred.numel()})")
+        #print(curve_pred)
 
-        unique_basins = torch.unique(basin_ids)
-        if unique_basins.numel() == 0:
-            return torch.tensor(0.0, device=y_pred.device)
+        # Reference curve
+        ref_curve = self._compute_cumulative_curve(
+            elevation, swe_volume_true, self.num_bins
+        )
+        #print(f"    -> Reference curve computed (len={ref_curve.numel()})")
+        #print(ref_curve)
+        ref_curve = ref_curve.to(curve_pred.device)
 
-        discrepancies = []
-        for b in unique_basins.tolist():
-            mask = (basin_ids == b)
-            if mask.sum() < 2:
-                continue
-            curve_pred = self._compute_cumulative_curve(
-                elevation[mask], swe_volume[mask], self.num_bins
-            )
-            ref_curve = self.reference_curves.get(int(b), None)
-            if ref_curve is None:
-                # 缺参考则跳过该流域
-                continue
-            # 将参考 curve 移动到同一设备与形状
-            ref_curve = ref_curve.to(curve_pred.device)
-            if ref_curve.numel() != curve_pred.numel():
-                # 线性重采样到相同长度（纯 1D，可微分）
-                def _resample_1d(curve: torch.Tensor, target_len: int) -> torch.Tensor:
-                    n = curve.numel()
-                    if n == target_len:
-                        return curve
-                    if n == 1:
-                        return curve.repeat(target_len)
-                    idxs = torch.linspace(0, n - 1, steps=target_len, device=curve.device)
-                    idx_low = torch.floor(idxs).long()
-                    idx_high = torch.clamp(idx_low + 1, max=n - 1)
-                    w = (idxs - idx_low.float()).clamp(0.0, 1.0)
-                    return curve[idx_low] * (1 - w) + curve[idx_high] * w
-                ref_curve = _resample_1d(ref_curve, curve_pred.numel())
-            # L2 差异
-            discrepancies.append(torch.mean((curve_pred - ref_curve) ** 2))
+        # Compute L2 difference
+        loss = torch.mean((curve_pred - ref_curve) ** 2)
 
-        if len(discrepancies) == 0:
-            return torch.tensor(0.0, device=y_pred.device)
-        return torch.mean(torch.stack(discrepancies))
+        #print(f"\n[HypsometryDiscrepancy] <<< Final loss: {loss.item():.6f}\n")
+        return loss
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, batch: Data = None) -> torch.Tensor:
         # 基础 RMSE
-        base = torch.sqrt(self._mse(y_pred, y_true))
+        #base = torch.sqrt(self._mse(y_pred, y_true))
+        base = self._weighted_rmse(y_pred, y_true)
+        #base = self._smooth_weighted_rmse(y_pred, y_true, alpha=1.0, beta=0.1)
 
         # Hypsometry 物理项（可选）
         phys = torch.tensor(0.0, device=y_pred.device)
         if batch is not None and self.hypsometry_weight > 0.0:
             try:
                 seeds = batch.batch_size if hasattr(batch, 'batch_size') else y_pred.shape[0]
-                phys = self._hypsometry_discrepancy(y_pred, batch, seeds)
+                phys = self._hypsometry_discrepancy(y_pred, y_true, batch, seeds)
+                #print(base)
+                #print(phys)
+                #sys.exit(1)
             except Exception as e:
                 if not self._warned_missing_context:
                     print(f"[SWELoss] Hypsometry term disabled this step due to: {str(e)}", flush=True)
@@ -1643,14 +1656,14 @@ def main():
         # 使用增强的 SWELoss（如无参考曲线则自动退化为 RMSE 行为）
         loss_fn = SWELoss(
             base_weight=1.0,
-            hypsometry_weight=0.1,  # 可根据需要在 CONFIG 中暴露
-            elevation_feature_index=None,  # 若高程在 x 的列索引已知，可填写索引
-            basin_id_attr='grid_id',
+            hypsometry_weight=10.0,  # 可根据需要在 CONFIG 中暴露
+            elevation_feature_index=3,  # 若高程在 x 的列索引已知，可填写索引
             area_feature_index=None,
             num_bins=20,
             reference_curves=None,  # 之后可加载 SNODAS/类比年参考曲线后设置
         )
         #loss_fn = nn.MSELoss()
+        #loss_fn = SWEPhaseConstraintLoss()
 
         # 训练模型
         history = train(

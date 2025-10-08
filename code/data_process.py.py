@@ -10,7 +10,8 @@ from torch_geometric.data import Data
 from sklearn.metrics import mean_squared_error, r2_score
 
 train_file_path = '/groups/ESS/whung/swe_gnn/data/all_points_final_merged_training_snodas_mask_resnet_all_batch.csv'
-test_file_path = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_2025-02-26_merged.csv_snodas_mask.csv'
+test_file_date = '2025-01-15'
+test_file_path = f'/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_{test_file_date}_merged.csv_snodas_mask.csv'
 #test_file_path = '/groups/ESS/whung/swe_gnn/data/test_data_predicted_latest_2025-01-15.csv_snodas_mask.csv'
 
 chunksize = 500000
@@ -233,6 +234,6 @@ test_graph_data = build_graph(test_merged_nodes, test_df_scaled, is_test=True)
 #torch.save(train_graph_data, train_save_path)
 #print(f"\n Graph data saved at: {train_save_path}")
 
-test_save_path = '/groups/ESS/whung/swe_gnn/data/gnn_testing_data_2025-02-26.pt'
+test_save_path = f'/groups/ESS/whung/swe_gnn/data/gnn_testing_data_{test_file_date}.pt'
 torch.save(test_graph_data, test_save_path)
 print(f"\n Graph data saved at: {test_save_path}")

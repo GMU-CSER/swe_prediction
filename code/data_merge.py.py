@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 data_dir = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask'
-target_date = '2025-02-19'
+target_date = '2025-02-26'
 target_date_dt = pd.to_datetime(target_date, format='%Y-%m-%d')
 
 required_columns = ['SWE', 'air_temperature_tmmn', 'potential_evapotranspiration', 'mean_vapor_pressure_deficit', 'relative_humidity_rmax', 'relative_humidity_rmin', 'precipitation_amount', 'air_temperature_tmmx', 'wind_speed', 'fsca']
@@ -32,6 +32,8 @@ column_name_mapper = {'Latitude': 'lat',
 current_day_file = f'{data_dir}/testing_all_ready_{target_date}.csv_snodas_mask.csv'
 current_day_data = pd.read_csv(current_day_file)
 current_day_data.rename(columns=column_name_mapper, inplace=True)
+current_day_data.loc[current_day_data['fsca'] > 200, 'fsca'] = np.nan
+#current_day_data.loc[current_day_data['fsca'] < 0, 'fsca'] = np.nan
 #current_day_data = current_day_data.dropna()
 print('------ Current day:', target_date)
 print('Data shape:', current_day_data.shape)
@@ -47,6 +49,7 @@ for i in range(1, 8):
     past_day_data = pd.read_csv(past_day_file)
     past_day_data.rename(columns=column_name_mapper, inplace=True)
     past_day_data = past_day_data[required_columns]
+    #past_day_data.loc[past_day_data['fsca'] > 200, 'fsca'] = np.nan
 
     # rename columns for past days
     old_names = list(past_day_data.keys())
