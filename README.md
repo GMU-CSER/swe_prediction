@@ -6,7 +6,7 @@
 Train and use GNN models to predict SWE
 
 ## Processes
-data_process.py, generate_grid.py, model_train.py, data_merge.py, model_predic.py
+data_process.py, generate_grid.py, model_train.py, data_merge.py, model_predic.py, obs_eval.py, eval_util.py, model_pred.py
 
 ### Process Descriptions
 |---------------------------------------------|
@@ -17,6 +17,9 @@ data_process.py, generate_grid.py, model_train.py, data_merge.py, model_predic.p
 | model_train.py   | No description available |
 | data_merge.py    | No description available |
 | model_predic.py  | No description available |
+| obs_eval.py      | No description available |
+| eval_util.py     | No description available |
+| model_pred.py    | No description available |
 |---------------------------------------------|
 
 

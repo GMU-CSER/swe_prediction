@@ -1,4 +1,8 @@
 # ===================== 导入语句 =====================
+# Environment set up for Pytorch deterministic mode
+import os
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
 # PyTorch 相关
 import torch
 import torch.nn as nn
@@ -19,6 +23,12 @@ from torch.nn import Linear
 
 # 添加安全全局变量
 add_safe_globals([torch_geometric.data.data.DataEdgeAttr])
+
+# Ensure Pytorch deterministic mode
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True, warn_only=True)
+print('Pytorch deterministic mode:', torch.are_deterministic_algorithms_enabled())
 
 # 数据处理相关
 import pandas as pd
@@ -88,25 +98,32 @@ class SWELoss(nn.Module):
     def __init__(
         self,
         base_weight: float = 1.0,
-        hypsometry_weight: float = 0.1,
+        hypsometry_weight: float = 1.0,
         elevation_feature_index: int = None,
-        basin_id_attr: str = 'grid_id',
+        temperature_feature_index: int = None,
+        precipitation_feature_index: int = None,
         area_feature_index: int = None,
         num_bins: int = 20,
-        reference_curves: Dict[int, torch.Tensor] = None,
+        elevation_curve_weight: float = 1.0,
+        temperature_curve_weight: float = 0.0,
+        precipitation_curve_weight: float = 0.0,
     ):
         super().__init__()
         self.base_weight = base_weight
         self.hypsometry_weight = hypsometry_weight
         self.elevation_feature_index = elevation_feature_index
+        self.temperature_feature_index = temperature_feature_index
+        self.precipitation_feature_index = precipitation_feature_index
         self.area_feature_index = area_feature_index
         self.num_bins = num_bins
-        self.reference_curves = reference_curves or {}
+        self.elevation_curve_weight = elevation_curve_weight
+        self.temperature_curve_weight = temperature_curve_weight
+        self.precipitation_curve_weight = precipitation_curve_weight
 
         self._mse = nn.MSELoss()
         self._warned_missing_context = False
 
-    def _get_elevation(self, batch: Data, seeds: int, index: int) -> torch.Tensor:
+    def _get_batch_element(self, batch: Data, seeds: int, index: int) -> torch.Tensor:
         # 优先从属性读取
         return batch.x[:seeds, index]
 
@@ -144,27 +161,39 @@ class SWELoss(nn.Module):
 
     def _compute_cumulative_curve(
         self,
-        elevation: torch.Tensor,
+        objective: torch.Tensor,
         swe_volume: torch.Tensor, 
         num_bins: int,
+        reverse: bool=False,
     ) -> torch.Tensor:
         # 以 batch 内 min-max 建立分箱，得到累计体积分布（0-1 归一）
-        elev_min = torch.min(elevation)
-        elev_max = torch.max(elevation)
+        obj_min = torch.min(objective)
+        obj_max = torch.max(objective)
         # 防止边界相等
-        if torch.isclose(elev_min, elev_max):
-            elev_max = elev_min + 1.0
-        bin_edges = torch.linspace(elev_min, elev_max, steps=num_bins + 1, device=elevation.device)
+        if torch.isclose(obj_min, obj_max):
+            obj_max = obj_min + 1.0
+        bin_edges = torch.linspace(obj_min, obj_max, steps=num_bins + 1, device=objective.device)
+        #print(f"  -> min: {obj_min}, max: {obj_max}, edges: {bin_edges}")
 
-        total_volume = torch.sum(swe_volume)
-        if total_volume.item() == 0.0:
-            total_volume = torch.tensor(1e-8, device=swe_volume.device)  # Prevent division by zero
+        total_volume = torch.sum(swe_volume) + 1e-8
 
         # Compute volume for each bin
         bin_volumes = []
-        for i in range(1, len(bin_edges)):
-            mask = (elevation > bin_edges[i - 1]) & (elevation <= bin_edges[i])
-            bin_volumes.append(torch.sum(swe_volume[mask]))
+        if reverse == True:
+            bin_edges = torch.flip(bin_edges, [0])
+            for i in range(1, len(bin_edges)):
+                if i == 1:
+                    mask = (objective <= bin_edges[i - 1]) & (objective >= bin_edges[i])
+                else:
+                    mask = (objective < bin_edges[i - 1]) & (objective >= bin_edges[i])
+                bin_volumes.append(torch.sum(swe_volume[mask]))
+        elif reverse == False:
+            for i in range(1, len(bin_edges)):
+                if i == 1:
+                    mask = (objective >= bin_edges[i - 1]) & (objective <= bin_edges[i])
+                else:
+                    mask = (objective > bin_edges[i - 1]) & (objective <= bin_edges[i])
+                bin_volumes.append(torch.sum(swe_volume[mask]))
         bin_volumes = torch.stack(bin_volumes)
 
         # Compute normalized cumulative curve
@@ -180,7 +209,7 @@ class SWELoss(nn.Module):
         seeds: int,
     ) -> torch.Tensor:
         """
-        Compute hypsometry discrepancy loss between predicted SWE-volume distribution and reference cumulative elevation curves.
+        Compute hypsometry discrepancy loss between predicted SWE-volume distribution and reference cumulative elevation/temperature curves.
         Prints detailed debug information to console.
         """
     
@@ -188,11 +217,25 @@ class SWELoss(nn.Module):
         #print(f"  -> y_pred shape: {tuple(y_pred.shape)}, seeds: {seeds}")
     
         # Get elevation
-        elevation = self._get_elevation(batch, seeds, self.elevation_feature_index)
+        elevation = self._get_batch_element(batch, seeds, self.elevation_feature_index)
         if elevation is None:
             print("  [Skip] Elevation data unavailable.")
             return torch.tensor(0.0, device=y_pred.device)
         #print(f"  -> Elevation shape: {tuple(elevation.shape)}")
+
+        # Get temperature
+        temperature = self._get_batch_element(batch, seeds, self.temperature_feature_index)
+        if temperature is None:
+            print("  [Skip] Temperature data unavailable.")
+            return torch.tensor(0.0, device=y_pred.device)
+        #print(f"  -> Temperature shape: {tuple(temperature.shape)}")
+
+        # Get precipitation
+        precipitation = self._get_batch_element(batch, seeds, self.precipitation_feature_index)
+        if precipitation is None:
+            print("  [Skip] Precipitation data unavailable.")
+            return torch.tensor(0.0, device=y_pred.device)
+        #print(f"  -> Precipitation shape: {tuple(precipitation.shape)}")
     
         # Get area
         area = self._get_area(batch, seeds)
@@ -203,20 +246,41 @@ class SWELoss(nn.Module):
         swe_volume_true = y_true * area
         #print("  -> SWE volume computed (kept differentiable).")
     
-        # Compute cumulative curve
-        curve_pred = self._compute_cumulative_curve(
-            elevation, swe_volume, self.num_bins
+        # Predicted cumulative curve
+        curve_pred_elev = self._compute_cumulative_curve(
+            elevation, swe_volume, self.num_bins, reverse=False
         )
+        curve_pred_temp = self._compute_cumulative_curve(
+            temperature, swe_volume, self.num_bins, reverse=True
+        )
+        curve_pred_precip = self._compute_cumulative_curve(
+            precipitation, swe_volume, self.num_bins, reverse=False
+        )
+        curve_pred = curve_pred_elev * self.elevation_curve_weight + curve_pred_temp * self.temperature_curve_weight + curve_pred_precip * self.precipitation_curve_weight
+        curve_pred = curve_pred.to(y_pred.device)
         #print(f"    -> Predicted curve computed (len={curve_pred.numel()})")
-        #print(curve_pred)
+        #print(f"elevation pred curve: {curve_pred_elev}")
+        #print(f"temperature pred curve: {curve_pred_temp}")
+        #print(f"precipitation pred curve: {curve_pred_precip}")
+        #print(f"final pred curve: {curve_pred}")
 
         # Reference curve
-        ref_curve = self._compute_cumulative_curve(
-            elevation, swe_volume_true, self.num_bins
+        ref_curve_elev = self._compute_cumulative_curve(
+            elevation, swe_volume_true, self.num_bins, reverse=False
         )
+        ref_curve_temp = self._compute_cumulative_curve(
+            temperature, swe_volume_true, self.num_bins, reverse=True
+        )
+        ref_curve_precip = self._compute_cumulative_curve(
+            precipitation, swe_volume_true, self.num_bins, reverse=False
+        )
+        ref_curve = ref_curve_elev * self.elevation_curve_weight + ref_curve_temp * self.temperature_curve_weight + ref_curve_precip * self.precipitation_curve_weight
+        ref_curve = ref_curve.to(y_pred.device)
         #print(f"    -> Reference curve computed (len={ref_curve.numel()})")
-        #print(ref_curve)
-        ref_curve = ref_curve.to(curve_pred.device)
+        #print(f"elevation ref curve: {ref_curve_elev}")
+        #print(f"temperature ref curve: {ref_curve_temp}")
+        #print(f"precipitation ref curve: {ref_curve_precip}")
+        #print(f"final ref curve: {ref_curve}")
 
         # Compute L2 difference
         loss = torch.mean((curve_pred - ref_curve) ** 2)
@@ -226,8 +290,8 @@ class SWELoss(nn.Module):
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, batch: Data = None) -> torch.Tensor:
         # 基础 RMSE
-        #base = torch.sqrt(self._mse(y_pred, y_true))
-        base = self._weighted_rmse(y_pred, y_true)
+        base = torch.sqrt(self._mse(y_pred, y_true))
+        #base = self._weighted_rmse(y_pred, y_true)
         #base = self._smooth_weighted_rmse(y_pred, y_true, alpha=1.0, beta=0.1)
 
         # Hypsometry 物理项（可选）
@@ -236,9 +300,6 @@ class SWELoss(nn.Module):
             try:
                 seeds = batch.batch_size if hasattr(batch, 'batch_size') else y_pred.shape[0]
                 phys = self._hypsometry_discrepancy(y_pred, y_true, batch, seeds)
-                #print(base)
-                #print(phys)
-                #sys.exit(1)
             except Exception as e:
                 if not self._warned_missing_context:
                     print(f"[SWELoss] Hypsometry term disabled this step due to: {str(e)}", flush=True)
@@ -364,10 +425,10 @@ CONFIG = {
         'K': 3
     },
     'training_params': {
-        'batch_size': 512,
+        'batch_size': 1024,
         'num_neighbors': [16, 16],
         'learning_rate': 1e-3,
-        'weight_decay': 1e-5,
+        'weight_decay': 1e-3,
         'epochs': 100,
         'train_ratio': 0.8,
         'val_ratio': 0.1,
@@ -380,7 +441,7 @@ CONFIG = {
         }
     },
     'visualization': {
-        'save_dir': '/groups/ESS/whung/swe_gnn/results_sweloss',
+        'save_dir': '/groups/ESS/whung/swe_gnn/results_v2',
         'figsize': (12, 8),
         'dpi': 300
     }
@@ -809,6 +870,60 @@ def split_masks(data: Data, train_ratio: float = 0.8, val_ratio: float = 0.1, se
     train_idx = perm[:n_train]
     val_idx = perm[n_train:n_train + n_val]
     test_idx = perm[n_train + n_val:]
+
+    data.train_mask = torch.zeros(num_nodes, dtype=torch.bool, device=data.x.device)
+    data.val_mask = torch.zeros(num_nodes, dtype=torch.bool, device=data.x.device)
+    data.test_mask = torch.zeros(num_nodes, dtype=torch.bool, device=data.x.device)
+
+    data.train_mask[train_idx] = True
+    data.val_mask[val_idx] = True
+    data.test_mask[test_idx] = True
+
+def split_masks_balanced(data: Data, train_ratio: float = 0.8, val_ratio: float = 0.1, seed: int = 42) -> None:
+    """在数据上划分训练、验证和测试集"""
+    num_nodes = data.num_nodes
+
+    ## separate into three groups
+    idx0 = torch.argwhere(data.y == 0)
+    idx1 = torch.argwhere((data.y > 0) & (data.y <= 25))
+    idx2 = torch.argwhere(data.y > 25)
+    count0 = torch.sum(data.y == 0).item()
+    count1 = torch.sum((data.y > 0) & (data.y <= 25)).item()
+    count2 = torch.sum(data.y > 25).item()
+
+    ## shuffle group indices
+    torch.manual_seed(seed)
+    perm0 = torch.randperm(count0, device=data.x.device)
+    perm1 = torch.randperm(count1, device=data.x.device)
+    perm2 = torch.randperm(count2, device=data.x.device)
+    idx0 = idx0[perm0]
+    idx1 = idx1[perm1]
+    idx2 = idx2[perm2]
+
+    n_train0 = int(train_ratio * count0)
+    n_val0 = int(val_ratio * count0)
+    n_train1 = int(train_ratio * count1)
+    n_val1 = int(val_ratio * count1)
+    n_train2 = int(train_ratio * count2)
+    n_val2 = int(val_ratio * count2)
+
+    train_idx = torch.cat((
+        idx0[:n_train0],
+        idx1[:n_train1],  #.repeat(int(count0/count1), 1),
+        idx2[:n_train2]   #.repeat(int(count0/count2), 1)
+    ), dim=0)
+    val_idx = torch.cat((
+        idx0[n_train0:n_train0 + n_val0],
+        idx1[n_train1:n_train1 + n_val1],
+        idx2[n_train2:n_train2 + n_val2]
+    ), dim=0)
+    test_idx = torch.cat((
+        idx0[n_train0 + n_val0:],
+        idx1[n_train1 + n_val1:],
+        idx2[n_train2 + n_val2:]
+    ), dim=0)
+    #print(train_idx.size(), val_idx.size(), test_idx.size())
+    #print(f"\nUnique indies check: val in train is {torch.sum(torch.isin(val_idx, train_idx)).item()}, test in train is {torch.sum(torch.isin(test_idx, train_idx)).item()}")
 
     data.train_mask = torch.zeros(num_nodes, dtype=torch.bool, device=data.x.device)
     data.val_mask = torch.zeros(num_nodes, dtype=torch.bool, device=data.x.device)
@@ -1540,7 +1655,12 @@ def main():
         print(f"{key}: {type(value)} | shape: {getattr(value, 'shape', None)}")
 
     # 数据预处理
-    split_masks(graph_data, 
+    #split_masks(graph_data, 
+    #            train_ratio=CONFIG['training_params']['train_ratio'],
+    #            val_ratio=CONFIG['training_params']['val_ratio'],
+    #            seed=CONFIG['training_params']['seed'])
+    
+    split_masks_balanced(graph_data, 
                 train_ratio=CONFIG['training_params']['train_ratio'],
                 val_ratio=CONFIG['training_params']['val_ratio'],
                 seed=CONFIG['training_params']['seed'])
@@ -1656,11 +1776,15 @@ def main():
         # 使用增强的 SWELoss（如无参考曲线则自动退化为 RMSE 行为）
         loss_fn = SWELoss(
             base_weight=1.0,
-            hypsometry_weight=10.0,  # 可根据需要在 CONFIG 中暴露
+            hypsometry_weight=100.0,  # 可根据需要在 CONFIG 中暴露
             elevation_feature_index=3,  # 若高程在 x 的列索引已知，可填写索引
+            temperature_feature_index=6,
+            precipitation_feature_index=49,
+            elevation_curve_weight=1.0,
+            temperature_curve_weight=0.0,
+            precipitation_curve_weight=0.0,
             area_feature_index=None,
             num_bins=20,
-            reference_curves=None,  # 之后可加载 SNODAS/类比年参考曲线后设置
         )
         #loss_fn = nn.MSELoss()
         #loss_fn = SWEPhaseConstraintLoss()
@@ -1694,8 +1818,8 @@ def main():
 
         # 保存模型
         #model_save_path = '/projects/kzhou6/bcui2/git_submit/SWE_25/model/' + f"{model_name}_model.pth"
-        #model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_v2.pth"
-        model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_sweloss.pth"
+        model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_v2.pth"
+        #model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_sweloss.pth"
         save_model(model, model_save_path)
 
     # 停止资源监控

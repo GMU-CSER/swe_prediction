@@ -20,7 +20,6 @@ all_id = []
 all_lat = []
 all_lon = []
 all_elv = []
-all_fsca = []
 all_pred_mseloss = []
 all_pred_sweloss = []
 all_pred_rmseloss = []
@@ -40,8 +39,8 @@ for date in target_dates:
     print('Num of site observation:', len(obs_swe))
 
     ## swe prediction
-    pred_data = pd.read_csv(f'{pred_path}/testing_all_ready_{date}_merged.csv_snodas_mask_pred.csv')
-    #pred_data = pd.read_csv(f'{pred_path}/testing_all_ready_{date}_merged.csv_snodas_mask_pred_v2.csv')
+    #pred_data = pd.read_csv(f'{pred_path}/testing_all_ready_{date}_merged.csv_snodas_mask_pred.csv')
+    pred_data = pd.read_csv(f'{pred_path}/testing_all_ready_{date}_merged.csv_snodas_mask_pred_v2.csv')
     #pred_data = pd.read_csv(f'{pred_path}/test_data_predicted_latest_{date}.csv_snodas_mask.csv')
     pred_lon = np.round(pred_data['lon'], 3)
     pred_lat = np.round(pred_data['lat'], 3)
@@ -49,7 +48,6 @@ for date in target_dates:
     #plot_prediction_map(pred_data, 'ETHole', date, '/groups/ESS/whung/swe_gnn/results_et')
 
     pred_elv = []
-    pred_fsca = []
     pred_swe_mseloss = []
     pred_swe_sweloss = []
     pred_swe_rmseloss = []
@@ -60,14 +58,12 @@ for date in target_dates:
         
         if np.sqrt(np.mean(dis[idx])) > 0.01:   # only use paired prediction within 1km
             pred_elv = np.append(pred_elv, np.nan)
-            pred_fsca = np.append(pred_fsca, np.nan)
             pred_swe_mseloss = np.append(pred_swe_mseloss, np.nan)
             pred_swe_sweloss = np.append(pred_swe_sweloss, np.nan)
             pred_swe_rmseloss = np.append(pred_swe_rmseloss, np.nan)
             #pred_swe_et = np.append(pred_swe_et, np.nan)
         else:
             pred_elv = np.append(pred_elv, np.mean(pred_data['Elevation'][idx]))
-            pred_fsca = np.append(pred_fsca, np.mean(pred_data['fsca'][idx]))
             pred_swe_mseloss = np.append(pred_swe_mseloss, np.mean(pred_data['predicted_swe_GCN_MSELoss'][idx]))
             pred_swe_sweloss = np.append(pred_swe_sweloss, np.mean(pred_data['predicted_swe_GCN_SWELoss'][idx]))
             pred_swe_rmseloss = np.append(pred_swe_rmseloss, np.mean(pred_data['predicted_swe_GCN_RMSELoss'][idx]))
@@ -80,18 +76,16 @@ for date in target_dates:
     all_lon = np.append(all_lon, obs_lon)
     all_lat = np.append(all_lat, obs_lat)
     all_elv = np.append(all_elv, pred_elv)
-    all_fsca = np.append(all_fsca, pred_fsca)
     all_pred_mseloss = np.append(all_pred_mseloss, pred_swe_mseloss)
     all_pred_sweloss = np.append(all_pred_sweloss, pred_swe_sweloss)
     all_pred_rmseloss = np.append(all_pred_rmseloss, pred_swe_rmseloss)
     #all_pred_et = np.append(all_pred_et, pred_swe_et)
 
     del [date_idx, obs_lon, obs_lat, obs_id, obs_swe]
-    del [pred_data, dis, idx, pred_lon, pred_lat, pred_elv, pred_fsca, pred_swe_mseloss, pred_swe_sweloss, pred_swe_rmseloss, pred_swe_et]
+    del [pred_data, dis, idx, pred_lon, pred_lat, pred_elv, pred_swe_mseloss, pred_swe_sweloss, pred_swe_rmseloss, pred_swe_et]
 
 all_data = pd.DataFrame(data={
     'obs_swe': all_obs,
-    'obs_fsca': all_fsca, 
     'site_id': all_id, 
     'site_lon': all_lon,
     'site_lat': all_lat,
@@ -108,28 +102,25 @@ print('Num of data points:', len(all_data))
 plot_scatter(
     all_data['obs_swe'],
     all_data['pred_swe_mseloss'],
-    all_data['site_elv'],
     'GCN_MSELoss',
     '/groups/ESS/whung/swe_gnn/results_mseloss',
 )
 plot_scatter(
     all_data['obs_swe'],
     all_data['pred_swe_sweloss'],
-    all_data['site_elv'],
     'GCN_SWELoss',
-    '/groups/ESS/whung/swe_gnn/results_sweloss',
+    #'/groups/ESS/whung/swe_gnn/results_sweloss',
+    '/groups/ESS/whung/swe_gnn/results_v2',
 )
 plot_scatter(
     all_data['obs_swe'],
     all_data['pred_swe_rmseloss'],
-    all_data['site_elv'],
     'GCN_RMSELoss',
     '/groups/ESS/whung/swe_gnn/results_rmseloss',
 )
 #plot_scatter(
 #    all_data['obs_swe'],
 #    all_data['pred_swe_et'],
-#    all_data['site_elv'],
 #    'ETHole',
 #    '/groups/ESS/whung/swe_gnn/results_et',
 #)
@@ -196,14 +187,16 @@ print('------ Table saved!')
 
 print('\n------ Plotting stats maps...')
 plot_stats_map(stats, 'GCN_MSELoss', '/groups/ESS/whung/swe_gnn/results_mseloss')
-plot_stats_map(stats, 'GCN_SWELoss', '/groups/ESS/whung/swe_gnn/results_sweloss')
+#plot_stats_map(stats, 'GCN_SWELoss', '/groups/ESS/whung/swe_gnn/results_sweloss')
+plot_stats_map(stats, 'GCN_SWELoss', '/groups/ESS/whung/swe_gnn/results_v2')
 plot_stats_map(stats, 'GCN_RMSELoss', '/groups/ESS/whung/swe_gnn/results_rmseloss')
 #plot_stats_map(stats, 'ETHole', '/groups/ESS/whung/swe_gnn/results_et')
 print('------ Map saved!')
 
 print('\n------ Plotting elv-r2-rmse plots...')
 plot_elv_r2_rmse(stats, 'GCN_MSELoss', '/groups/ESS/whung/swe_gnn/results_mseloss')
-plot_elv_r2_rmse(stats, 'GCN_SWELoss', '/groups/ESS/whung/swe_gnn/results_sweloss')
+#plot_elv_r2_rmse(stats, 'GCN_SWELoss', '/groups/ESS/whung/swe_gnn/results_sweloss')
+plot_elv_r2_rmse(stats, 'GCN_SWELoss', '/groups/ESS/whung/swe_gnn/results_v2')
 plot_elv_r2_rmse(stats, 'GCN_RMSELoss', '/groups/ESS/whung/swe_gnn/results_rmseloss')
 #plot_elv_r2_rmse(stats, 'ETHole', '/groups/ESS/whung/swe_gnn/results_et')
 print('------ Plot saved!')

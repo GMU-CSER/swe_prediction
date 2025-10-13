@@ -2,6 +2,7 @@
 import numpy as np
 import geopandas as gpd
 import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
 
 #### FOR SITE OBS EVALUATION ####
 
@@ -61,11 +62,18 @@ def plot_prediction_map(
 def plot_scatter(
     X,
     Y,
-    C,
     model_name,
     pic_path
 ):
+    X = np.array(X)
+    Y = np.array(Y)
     r2, rmse = stats_calculation(X, Y)
+
+    # data density
+    xy = np.vstack([X, Y])
+    Z = gaussian_kde(xy)(xy)
+    idx = Z.argsort()
+    x, y, z = X[idx], Y[idx], Z[idx]
 
     tick_limit = np.ceil(np.max([X.max(), Y.max()]))
 
@@ -80,7 +88,7 @@ def plot_scatter(
         linestyle=':',
         color='k'
     )
-    cs = plt.scatter(X, Y, c=C, s=30, cmap='turbo', vmin=500, vmax=2000, alpha=0.8)
+    cs = plt.scatter(x, y, c=z, s=30, cmap='turbo', alpha=0.8)
     plt.annotate(
         text='R2='+('%.4f'%r2)+', RMSE='+('%.4f'%rmse),
         xy=(0.15, 0.9),
@@ -95,8 +103,8 @@ def plot_scatter(
     plt.ylim([0, tick_limit])
     plt.grid(True, axis='y')
 
-    cb = plt.colorbar(cs, extend='both')
-    cb.set_label('Elevation', fontsize=24)
+    cb = plt.colorbar(cs)
+    cb.set_label('Density', fontsize=24)
     cb.outline.set_linewidth(3)
     cb.ax.tick_params(labelsize=24)
     
@@ -231,4 +239,55 @@ def plot_model_products(
     cb.ax.tick_params(labelsize=24)
 
     plt.savefig(f'{pic_path}/{prod_option}_swe_prediction_{date}.png')
+    plt.close()
+
+def plot_model_scatter(
+    X,
+    Y,
+    prod_option,
+    pic_path
+):
+    r2, rmse = stats_calculation(X, Y)
+
+    # data density
+    xy = np.vstack([X, Y])
+    Z = gaussian_kde(xy)(xy)
+    idx = Z.argsort()
+    x, y, z = X[idx], Y[idx], Z[idx]
+
+    tick_limit = np.ceil(np.max([X.max(), Y.max()]))
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    for axis in ['top','bottom','left','right']:
+        ax.spines[axis].set_linewidth(3)
+    ax.tick_params(labelsize=24)
+
+    plt.plot(np.arange(tick_limit),
+        np.arange(tick_limit),
+        linewidth=1,
+        linestyle=':',
+        color='k'
+    )
+    cs = plt.scatter(x, y, c=z, s=30, cmap='turbo', alpha=0.8)
+    plt.annotate(
+        text='R2='+('%.4f'%r2)+', RMSE='+('%.4f'%rmse),
+        xy=(0.15, 0.9),
+        xycoords='figure fraction',
+        fontsize=20
+    )
+
+    plt.title(f'Site Observation Comparison ({prod_option})', fontsize=24)
+    plt.xlabel('Observation', fontsize=24)
+    plt.ylabel(f'{prod_option} Model', fontsize=24)
+    plt.xlim([0, tick_limit])
+    plt.ylim([0, tick_limit])
+    plt.grid(True, axis='y')
+
+    cb = plt.colorbar(cs)
+    cb.set_label('Density', fontsize=24)
+    cb.outline.set_linewidth(3)
+    cb.ax.tick_params(labelsize=24)
+    
+    plt.tight_layout()
+    plt.savefig(f'{pic_path}/{prod_option}_site_comparison.png')
     plt.close()
