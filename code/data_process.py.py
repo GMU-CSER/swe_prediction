@@ -10,7 +10,7 @@ from torch_geometric.data import Data
 from sklearn.metrics import mean_squared_error, r2_score
 
 train_file_path = '/groups/ESS/whung/swe_gnn/data/all_points_final_merged_training_snodas_mask_resnet_all_batch.csv'
-test_file_date = '2025-01-15'
+test_file_date = '2025-02-26'
 test_file_path = f'/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_{test_file_date}_merged.csv_snodas_mask.csv'
 #test_file_path = '/groups/ESS/whung/swe_gnn/data/test_data_predicted_latest_2025-01-15.csv_snodas_mask.csv'
 

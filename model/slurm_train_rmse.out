@@ -1,0 +1,152 @@
+/home/whung/geo_env/bin/python
+/home/whung/geo_env/bin/python
+Python 3.9.23
+Python 3.9.23
+slurmstepd-dgx001: error: *** JOB 4649429 ON dgx001 CANCELLED AT 2025-10-03T16:07:20 ***
+Using device: cuda:0
+Loading data...
+Data loaded successfully with weights_only=False
+
+Detailed data structure:
+Loaded from: /groups/ESS/whung/swe_gnn/data/gnn_training_data.pt
+Type: <class 'torch_geometric.data.data.Data'>
+
+Attributes:
+x:
+  Type: <class 'torch.Tensor'>
+  Shape: torch.Size([1660613, 86])
+  Dtype: torch.float32
+  Device: cuda:0
+
+edge_index:
+  Type: <class 'torch.Tensor'>
+  Shape: torch.Size([2, 9963660])
+  Dtype: torch.int64
+  Device: cuda:0
+
+y:
+  Type: <class 'torch.Tensor'>
+  Shape: torch.Size([1660613])
+  Dtype: torch.float32
+  Device: cuda:0
+
+Other attributes:
+num_nodes: 1660613
+num_edges: 9963660
+num_node_features: 86
+
+Data loaded: 1660613 nodes, 9963660 edges, 86 features per node
+
+SWE reference curve:
+  Num of all grids: 4413
+  Num of grids with availale curve: 308
+  Num of grids without curve: 4105
+x: <class 'torch.Tensor'> | shape: torch.Size([1660613, 86])
+edge_index: <class 'torch.Tensor'> | shape: torch.Size([2, 9963660])
+y: <class 'torch.Tensor'> | shape: torch.Size([1660613])
+grid_id: <class 'torch.Tensor'> | shape: torch.Size([1660613])
+
+Updated model parameters:
+Input channels: 86
+
+Data loaders will be built per model based on model-specific hops (num_neighbors)...
+
+Training GCN...
+Model structure:
+GCN_Model(
+  (feature_extract): Sequential(
+    (0): Linear(in_features=86, out_features=128, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.2, inplace=False)
+  )
+  (conv1): GCNConv(128, 128)
+  (bn1): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (conv2): GCNConv(128, 128)
+  (bn2): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (conv3): GCNConv(128, 128)
+  (bn3): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (fusion): Sequential(
+    (0): Linear(in_features=384, out_features=128, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.2, inplace=False)
+  )
+  (linear1): Linear(in_features=128, out_features=32, bias=True)
+  (linear2): Linear(in_features=32, out_features=1, bias=True)
+)
+
+=== GCN 参数统计 ===
+总参数数: 114,881
+可训练参数数: 114,881
+不可训练参数数: 0
+模型大小估计: 0.44 MB (假设32位浮点)
+
+=== GCN 层级结构 ===
+feature_extract.0.weight: torch.Size([128, 86]) -> 11,008 参数
+feature_extract.0.bias: torch.Size([128]) -> 128 参数
+conv1.bias: torch.Size([128]) -> 128 参数
+conv1.lin.weight: torch.Size([128, 128]) -> 16,384 参数
+bn1.weight: torch.Size([128]) -> 128 参数
+bn1.bias: torch.Size([128]) -> 128 参数
+conv2.bias: torch.Size([128]) -> 128 参数
+conv2.lin.weight: torch.Size([128, 128]) -> 16,384 参数
+bn2.weight: torch.Size([128]) -> 128 参数
+bn2.bias: torch.Size([128]) -> 128 参数
+conv3.bias: torch.Size([128]) -> 128 参数
+conv3.lin.weight: torch.Size([128, 128]) -> 16,384 参数
+bn3.weight: torch.Size([128]) -> 128 参数
+bn3.bias: torch.Size([128]) -> 128 参数
+fusion.0.weight: torch.Size([128, 384]) -> 49,152 参数
+fusion.0.bias: torch.Size([128]) -> 128 参数
+linear1.weight: torch.Size([32, 128]) -> 4,096 参数
+linear1.bias: torch.Size([32]) -> 32 参数
+linear2.weight: torch.Size([1, 32]) -> 32 参数
+linear2.bias: torch.Size([1]) -> 1 参数
+GCN num_neighbors (hops): [16, 16, 16]
+/groups/ESS/whung/mambaforge/envs/gnn_torch/lib/python3.9/site-packages/torch_geometric/sampler/neighbor_sampler.py:61: UserWarning: Using 'NeighborSampler' without a 'pyg-lib' installation is deprecated and will be removed soon. Please install 'pyg-lib' for accelerated neighborhood sampling
+  warnings.warn(f"Using '{self.__class__.__name__}' without a "
+<stdin>:928: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+<stdin>:932: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+Epoch 001 | Train Loss (RMSE): 2.2253 | Val Loss (RMSE): 1.6363 | Train R²: 0.7700 | Val R²: 0.8281
+Epoch 002 | Train Loss (RMSE): 1.9735 | Val Loss (RMSE): 1.5747 | Train R²: 0.8231 | Val R²: 0.8495
+Epoch 003 | Train Loss (RMSE): 1.8831 | Val Loss (RMSE): 1.4939 | Train R²: 0.8400 | Val R²: 0.8593
+Epoch 004 | Train Loss (RMSE): 1.8148 | Val Loss (RMSE): 1.4295 | Train R²: 0.8514 | Val R²: 0.8753
+Epoch 005 | Train Loss (RMSE): 1.7592 | Val Loss (RMSE): 1.4095 | Train R²: 0.8612 | Val R²: 0.8802
+Epoch 006 | Train Loss (RMSE): 1.7166 | Val Loss (RMSE): 1.4116 | Train R²: 0.8676 | Val R²: 0.8787
+Epoch 007 | Train Loss (RMSE): 1.6728 | Val Loss (RMSE): 1.3143 | Train R²: 0.8749 | Val R²: 0.8940
+Epoch 008 | Train Loss (RMSE): 1.6470 | Val Loss (RMSE): 1.2914 | Train R²: 0.8788 | Val R²: 0.9020
+Epoch 009 | Train Loss (RMSE): 1.6071 | Val Loss (RMSE): 1.2317 | Train R²: 0.8849 | Val R²: 0.9112
+Epoch 010 | Train Loss (RMSE): 1.5759 | Val Loss (RMSE): 1.2309 | Train R²: 0.8892 | Val R²: 0.9109
+Epoch 011 | Train Loss (RMSE): 1.5441 | Val Loss (RMSE): 1.2241 | Train R²: 0.8939 | Val R²: 0.9097
+Epoch 012 | Train Loss (RMSE): 1.5231 | Val Loss (RMSE): 1.1709 | Train R²: 0.8968 | Val R²: 0.9194
+Epoch 013 | Train Loss (RMSE): 1.4994 | Val Loss (RMSE): 1.1506 | Train R²: 0.9004 | Val R²: 0.9236
+Epoch 014 | Train Loss (RMSE): 1.4707 | Val Loss (RMSE): 1.1940 | Train R²: 0.9043 | Val R²: 0.9154
+Epoch 015 | Train Loss (RMSE): 1.4456 | Val Loss (RMSE): 1.1410 | Train R²: 0.9078 | Val R²: 0.9247
+Epoch 016 | Train Loss (RMSE): 1.4268 | Val Loss (RMSE): 1.0827 | Train R²: 0.9102 | Val R²: 0.9329
+Epoch 017 | Train Loss (RMSE): 1.4033 | Val Loss (RMSE): 1.0991 | Train R²: 0.9132 | Val R²: 0.9300
+Epoch 018 | Train Loss (RMSE): 1.3902 | Val Loss (RMSE): 1.0633 | Train R²: 0.9149 | Val R²: 0.9352
+Epoch 019 | Train Loss (RMSE): 1.3636 | Val Loss (RMSE): 1.0607 | Train R²: 0.9185 | Val R²: 0.9354
+Epoch 020 | Train Loss (RMSE): 1.3456 | Val Loss (RMSE): 1.1080 | Train R²: 0.9207 | Val R²: 0.9290
+Epoch 021 | Train Loss (RMSE): 1.3308 | Val Loss (RMSE): 1.0940 | Train R²: 0.9224 | Val R²: 0.9305
+Epoch 022 | Train Loss (RMSE): 1.3099 | Val Loss (RMSE): 1.0631 | Train R²: 0.9250 | Val R²: 0.9352
+Epoch 023 | Train Loss (RMSE): 1.2972 | Val Loss (RMSE): 1.0367 | Train R²: 0.9265 | Val R²: 0.9398
+Epoch 024 | Train Loss (RMSE): 1.2821 | Val Loss (RMSE): 1.0586 | Train R²: 0.9284 | Val R²: 0.9348
+Epoch 025 | Train Loss (RMSE): 1.2742 | Val Loss (RMSE): 1.0356 | Train R²: 0.9292 | Val R²: 0.9384
+Epoch 026 | Train Loss (RMSE): 1.2608 | Val Loss (RMSE): 0.9603 | Train R²: 0.9307 | Val R²: 0.9490
+Epoch 027 | Train Loss (RMSE): 1.2462 | Val Loss (RMSE): 0.9471 | Train R²: 0.9324 | Val R²: 0.9502
+Epoch 028 | Train Loss (RMSE): 1.2351 | Val Loss (RMSE): 0.9571 | Train R²: 0.9336 | Val R²: 0.9479
+Epoch 029 | Train Loss (RMSE): 1.2182 | Val Loss (RMSE): 1.0526 | Train R²: 0.9355 | Val R²: 0.9349
+Epoch 030 | Train Loss (RMSE): 1.2117 | Val Loss (RMSE): 0.9666 | Train R²: 0.9362 | Val R²: 0.9471
+Epoch 031 | Train Loss (RMSE): 1.1955 | Val Loss (RMSE): 1.0402 | Train R²: 0.9379 | Val R²: 0.9364
+Epoch 032 | Train Loss (RMSE): 1.1859 | Val Loss (RMSE): 0.9376 | Train R²: 0.9391 | Val R²: 0.9514
+Epoch 033 | Train Loss (RMSE): 1.1792 | Val Loss (RMSE): 0.9866 | Train R²: 0.9399 | Val R²: 0.9443
+Epoch 034 | Train Loss (RMSE): 1.1692 | Val Loss (RMSE): 1.0346 | Train R²: 0.9407 | Val R²: 0.9365
+Epoch 035 | Train Loss (RMSE): 1.1584 | Val Loss (RMSE): 0.9460 | Train R²: 0.9421 | Val R²: 0.9496
+Epoch 036 | Train Loss (RMSE): 1.1560 | Val Loss (RMSE): 0.9457 | Train R²: 0.9422 | Val R²: 0.9503
+Epoch 037 | Train Loss (RMSE): 1.1457 | Val Loss (RMSE): 0.9031 | Train R²: 0.9431 | Val R²: 0.9544
+Epoch 038 | Train Loss (RMSE): 1.1365 | Val Loss (RMSE): 0.9518 | Train R²: 0.9442 | Val R²: 0.9493
+Epoch 039 | Train Loss (RMSE): 1.1251 | Val Loss (RMSE): 0.8837 | Train R²: 0.9454 | Val R²: 0.9563
+Epoch 040 | Train Loss (RMSE): 1.1214 | Val Loss (RMSE): 0.8391 | Train R²: 0.9457 | Val R²: 0.9605
+GCN Test Metrics:
+  R²: 0.9603
+  RMSE: 0.9300
+Model saved to /groups/ESS/whung/swe_gnn/model/GCN_model_v2.pth

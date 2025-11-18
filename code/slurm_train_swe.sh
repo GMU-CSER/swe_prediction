@@ -1,3 +1,45 @@
+#!/bin/bash
+
+## Specify the name of the script you want to submit
+SCRIPT_NAME="slurm_train.sh"
+echo "---- Write the slurm script into ${SCRIPT_NAME}"
+cat > ${SCRIPT_NAME} << EOF
+#!/bin/bash
+###SBATCH --partition=bigmem
+###SBATCH --job-name=Train1
+###SBATCH --nodes=1
+###SBATCH --ntasks-per-node=24
+###SBATCH --mem=240G
+###SBATCH --time=0-48:00:00
+###SBATCH --mail-type=END,FAIL
+###SBATCH --mail-user=whung@gmu.edu
+###SBATCH --output=/groups/ESS/whung/fira/fire_ML_train/output/model3_na/slurm_train.out
+
+#SBATCH --partition=gpuq
+#SBATCH --qos=gpu
+#SBATCH --job-name=swe_gnn
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=8
+###SBATCH --gres=gpu:A100.40gb:1
+#SBATCH --gres=gpu:3g.40gb:1
+#SBATCH --mem=12G
+#SBATCH --time=0-3:20:00
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=whung@gmu.edu
+#SBATCH --output=/groups/ESS/whung/swe_gnn/model/slurm_train_v2.out
+
+set echo
+umask 0027
+
+which python
+
+/groups/ESS/whung/mambaforge/envs/gnn_torch/bin/python --version
+/groups/ESS/whung/mambaforge/envs/gnn_torch/bin/python -u << INNER_EOF
+
+
+
+## Python code starts here
+
 # ===================== 导入语句 =====================
 # Environment set up for Pytorch deterministic mode
 import os
@@ -150,7 +192,6 @@ class SWELoss(nn.Module):
         # normalization to avoid heavy weight on high values
         weights = weights / torch.mean(weights)
         loss = weights * (y_pred - y_true) ** 2
-        #return torch.sqrt(torch.mean(loss))
         return torch.sqrt(torch.mean(loss))
 
     def _smooth_weighted_rmse(self, y_pred: torch.Tensor, y_true: torch.Tensor, alpha: float, beta: float) -> torch.Tensor:
@@ -174,24 +215,26 @@ class SWELoss(nn.Module):
         if torch.isclose(obj_min, obj_max):
             obj_max = obj_min + 1.0
         bin_edges = torch.linspace(obj_min, obj_max, steps=num_bins + 1, device=objective.device)
-        print(bin_edges)
-        print(torch.flip(bin_edges, dim=0))
-        sys.exit(1)
+        #print(f"  -> min: {obj_min}, max: {obj_max}, edges: {bin_edges}")
 
-        total_volume = torch.sum(swe_volume)
-        if total_volume.item() == 0.0:
-            total_volume = torch.tensor(1e-8, device=swe_volume.device)  # Prevent division by zero
+        total_volume = torch.sum(swe_volume) + 1e-8
 
         # Compute volume for each bin
         bin_volumes = []
         if reverse == True:
-            bin_edges = torch.flip(bin_edges)
+            bin_edges = torch.flip(bin_edges, [0])
             for i in range(1, len(bin_edges)):
-                mask = (objective < bin_edges[i - 1]) & (objective >= bin_edges[i])
+                if i == 1:
+                    mask = (objective <= bin_edges[i - 1]) & (objective >= bin_edges[i])
+                else:
+                    mask = (objective < bin_edges[i - 1]) & (objective >= bin_edges[i])
                 bin_volumes.append(torch.sum(swe_volume[mask]))
         elif reverse == False:
             for i in range(1, len(bin_edges)):
-                mask = (objective > bin_edges[i - 1]) & (objective <= bin_edges[i])
+                if i == 1:
+                    mask = (objective >= bin_edges[i - 1]) & (objective <= bin_edges[i])
+                else:
+                    mask = (objective > bin_edges[i - 1]) & (objective <= bin_edges[i])
                 bin_volumes.append(torch.sum(swe_volume[mask]))
         bin_volumes = torch.stack(bin_volumes)
 
@@ -257,11 +300,11 @@ class SWELoss(nn.Module):
         )
         curve_pred = curve_pred_elev * self.elevation_curve_weight + curve_pred_temp * self.temperature_curve_weight + curve_pred_precip * self.precipitation_curve_weight
         curve_pred = curve_pred.to(y_pred.device)
-        print(f"    -> Predicted curve computed (len={curve_pred.numel()})")
-        print(f"elevation pred curve: {curve_pred_elev}")
-        print(f"temperature pred curve: {curve_pred_temp}")
-        print(f"precipitation pred curve: {curve_pred_precip}")
-        print(f"final pred curve: {curve_pred}")
+        #print(f"    -> Predicted curve computed (len={curve_pred.numel()})")
+        #print(f"elevation pred curve: {curve_pred_elev}")
+        #print(f"temperature pred curve: {curve_pred_temp}")
+        #print(f"precipitation pred curve: {curve_pred_precip}")
+        #print(f"final pred curve: {curve_pred}")
 
         # Reference curve
         ref_curve_elev = self._compute_cumulative_curve(
@@ -275,23 +318,22 @@ class SWELoss(nn.Module):
         )
         ref_curve = ref_curve_elev * self.elevation_curve_weight + ref_curve_temp * self.temperature_curve_weight + ref_curve_precip * self.precipitation_curve_weight
         ref_curve = ref_curve.to(y_pred.device)
-        print(f"    -> Reference curve computed (len={ref_curve.numel()})")
-        print(f"elevation ref curve: {ref_curve_elev}")
-        print(f"temperature ref curve: {ref_curve_temp}")
-        print(f"precipitation ref curve: {ref_curve_precip}")
-        print(f"final ref curve: {ref_curve}")
+        #print(f"    -> Reference curve computed (len={ref_curve.numel()})")
+        #print(f"elevation ref curve: {ref_curve_elev}")
+        #print(f"temperature ref curve: {ref_curve_temp}")
+        #print(f"precipitation ref curve: {ref_curve_precip}")
+        #print(f"final ref curve: {ref_curve}")
 
         # Compute L2 difference
         loss = torch.mean((curve_pred - ref_curve) ** 2)
 
-        print(f"\n[HypsometryDiscrepancy] <<< Final loss: {loss.item():.6f}\n")
-        sys.exit(1)
+        #print(f"\n[HypsometryDiscrepancy] <<< Final loss: {loss.item():.6f}\n")
         return loss
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, batch: Data = None) -> torch.Tensor:
         # 基础 RMSE
-        #base = torch.sqrt(self._mse(y_pred, y_true))
-        base = self._weighted_rmse(y_pred, y_true)
+        base = torch.sqrt(self._mse(y_pred, y_true))
+        #base = self._weighted_rmse(y_pred, y_true)
         #base = self._smooth_weighted_rmse(y_pred, y_true, alpha=1.0, beta=0.1)
 
         # Hypsometry 物理项（可选）
@@ -300,9 +342,6 @@ class SWELoss(nn.Module):
             try:
                 seeds = batch.batch_size if hasattr(batch, 'batch_size') else y_pred.shape[0]
                 phys = self._hypsometry_discrepancy(y_pred, y_true, batch, seeds)
-                #print(base)
-                #print(phys)
-                #sys.exit(1)
             except Exception as e:
                 if not self._warned_missing_context:
                     print(f"[SWELoss] Hypsometry term disabled this step due to: {str(e)}", flush=True)
@@ -428,14 +467,14 @@ CONFIG = {
         'K': 3
     },
     'training_params': {
-        'batch_size': 512,
+        'batch_size': 1024,
         'num_neighbors': [16, 16],
         'learning_rate': 1e-3,
-        'weight_decay': 1e-5,
-        'epochs': 50,
+        'weight_decay': 1e-3,
+        'epochs': 100,
         'train_ratio': 0.8,
         'val_ratio': 0.1,
-        'seed': 23,
+        'seed': 42,
         'neighbors_by_model': {
             'SimplifiedGraphSAGE': [16, 16],
             'GraphSAGE': [16, 16, 16],
@@ -525,14 +564,14 @@ class GCN_Model(torch.nn.Module):
         
         # 增加隐藏层大小
         hidden_channels = hidden_channels * 2
-
+        
         # 特征提取层
         self.feature_extract = nn.Sequential(
             nn.Linear(in_channels, hidden_channels),
             nn.ReLU(),
             nn.Dropout(0.2)
         )
-
+        
         # 图卷积层
         self.conv1 = GCNConv(hidden_channels, hidden_channels)
         self.bn1 = nn.BatchNorm1d(hidden_channels)
@@ -540,14 +579,14 @@ class GCN_Model(torch.nn.Module):
         self.bn2 = nn.BatchNorm1d(hidden_channels)
         self.conv3 = GCNConv(hidden_channels, hidden_channels)
         self.bn3 = nn.BatchNorm1d(hidden_channels)
-
+        
         # 特征融合层
         self.fusion = nn.Sequential(
             nn.Linear(hidden_channels * 3, hidden_channels),
             nn.ReLU(),
             nn.Dropout(0.2)
         )
-
+        
         # MLP回归层
         self.linear1 = Linear(hidden_channels, 32)
         self.linear2 = Linear(32, out_channels)
@@ -887,14 +926,21 @@ def split_masks_balanced(data: Data, train_ratio: float = 0.8, val_ratio: float 
     num_nodes = data.num_nodes
 
     ## separate into three groups
+    idx0 = torch.argwhere(data.y == 0)
+    idx1 = torch.argwhere((data.y > 0) & (data.y <= 25))
+    idx2 = torch.argwhere(data.y > 25)
     count0 = torch.sum(data.y == 0).item()
     count1 = torch.sum((data.y > 0) & (data.y <= 25)).item()
     count2 = torch.sum(data.y > 25).item()
 
+    ## shuffle group indices
     torch.manual_seed(seed)
     perm0 = torch.randperm(count0, device=data.x.device)
     perm1 = torch.randperm(count1, device=data.x.device)
     perm2 = torch.randperm(count2, device=data.x.device)
+    idx0 = idx0[perm0]
+    idx1 = idx1[perm1]
+    idx2 = idx2[perm2]
 
     n_train0 = int(train_ratio * count0)
     n_val0 = int(val_ratio * count0)
@@ -903,9 +949,23 @@ def split_masks_balanced(data: Data, train_ratio: float = 0.8, val_ratio: float 
     n_train2 = int(train_ratio * count2)
     n_val2 = int(val_ratio * count2)
 
-    train_idx = torch.cat((perm0[:n_train0], perm1[:n_train1], perm2[:n_train2]), dim=0)
-    val_idx = torch.cat((perm0[n_train0:n_train0 + n_val0], perm1[n_train1:n_train1 + n_val1], perm2[n_train2:n_train2 + n_val2]), dim=0)
-    test_idx = torch.cat((perm0[n_train0 + n_val0:], perm1[n_train1 + n_val1:], perm2[n_train2 + n_val2:]), dim=0)
+    train_idx = torch.cat((
+        idx0[:n_train0],
+        idx1[:n_train1],  #.repeat(int(count0/count1), 1),
+        idx2[:n_train2]   #.repeat(int(count0/count2), 1)
+    ), dim=0)
+    val_idx = torch.cat((
+        idx0[n_train0:n_train0 + n_val0],
+        idx1[n_train1:n_train1 + n_val1],
+        idx2[n_train2:n_train2 + n_val2]
+    ), dim=0)
+    test_idx = torch.cat((
+        idx0[n_train0 + n_val0:],
+        idx1[n_train1 + n_val1:],
+        idx2[n_train2 + n_val2:]
+    ), dim=0)
+    #print(train_idx.size(), val_idx.size(), test_idx.size())
+    #print(f"\nUnique indies check: val in train is {torch.sum(torch.isin(val_idx, train_idx)).item()}, test in train is {torch.sum(torch.isin(test_idx, train_idx)).item()}")
 
     data.train_mask = torch.zeros(num_nodes, dtype=torch.bool, device=data.x.device)
     data.val_mask = torch.zeros(num_nodes, dtype=torch.bool, device=data.x.device)
@@ -1637,15 +1697,15 @@ def main():
         print(f"{key}: {type(value)} | shape: {getattr(value, 'shape', None)}")
 
     # 数据预处理
-    split_masks(graph_data, 
-                train_ratio=CONFIG['training_params']['train_ratio'],
-                val_ratio=CONFIG['training_params']['val_ratio'],
-                seed=CONFIG['training_params']['seed'])
-    
-    #split_masks_balanced(graph_data, 
+    #split_masks(graph_data, 
     #            train_ratio=CONFIG['training_params']['train_ratio'],
     #            val_ratio=CONFIG['training_params']['val_ratio'],
     #            seed=CONFIG['training_params']['seed'])
+    
+    split_masks_balanced(graph_data, 
+                train_ratio=CONFIG['training_params']['train_ratio'],
+                val_ratio=CONFIG['training_params']['val_ratio'],
+                seed=CONFIG['training_params']['seed'])
 
     # 成功加载数据后再启动资源监控，避免出错时挂起
     monitor = ResourceMonitor(interval=1.0)
@@ -1758,13 +1818,13 @@ def main():
         # 使用增强的 SWELoss（如无参考曲线则自动退化为 RMSE 行为）
         loss_fn = SWELoss(
             base_weight=1.0,
-            hypsometry_weight=10.0,  # 可根据需要在 CONFIG 中暴露
+            hypsometry_weight=100.0,  # 可根据需要在 CONFIG 中暴露
             elevation_feature_index=3,  # 若高程在 x 的列索引已知，可填写索引
             temperature_feature_index=6,
             precipitation_feature_index=49,
             elevation_curve_weight=1.0,
             temperature_curve_weight=0.0,
-            precipitation_curve_weight=0.0,
+            precipitation_curve_weight=1.0,
             area_feature_index=None,
             num_bins=20,
         )
@@ -1840,3 +1900,60 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+INNER_EOF
+
+EOF
+
+## Submit the Slurm job and wait for it to finish
+echo "sbatch ${SCRIPT_NAME}"
+
+## Submit the Slurm job
+job_id=$(sbatch ${SCRIPT_NAME} | awk '{print $4}')
+echo "job_id="${job_id}
+
+if [ -z "${job_id}" ]; then
+    echo "---- Warning!!! Job id is empty. Something wrong with the slurm job submission."
+    exit 1
+fi
+
+## Wait for the slurm job to finish
+#file_name=$(find /scratch/zsun -name '*'${job_id}'.out' -print -quit)
+#previous_content=$(<"${file_name}")
+#exit_code=0
+#while true; do
+#    # Capture the current content
+#    file_name=$(find /scratch/zsun -name '*'${job_id}'.out' -print -quit)
+#    current_content=$(<"${file_name}")
+#
+#    # Compare current content with previous content
+#    diff_result=$(diff <(echo "$previous_content") <(echo "$current_content"))
+#    # Check if there is new content
+#    if [ -n "$diff_result" ]; then
+#        echo "$diff_result"
+#    fi
+#    # Update previous content
+#    previous_content="$current_content"
+#
+#    job_status=$(scontrol show job ${job_id} | awk '/JobState=/{print $1}')
+#    if [[ $job_status == *"COMPLETED"* || $job_status == *"CANCELLED"* || $job_status == *"FAILED"* || $job_status == *"TIMEOUT"* || $job_status == *"NODE_FAIL"* || $job_status == *"PREEMPTED"* || $job_status == *"OUT_OF_MEMORY"* ]]; then
+#        echo "Job $job_id has finished with state: $job_status"
+#        break;
+#    fi
+#    sleep 10  # Adjust the sleep interval as needed
+#done
+
+echo "---- Slurm job ($job_id) has finished."
+
+echo "---- Print the job's output logs"
+sacct --format=JobID,JobName,State,ExitCode,MaxRSS,Start,End -j $job_id
+
+echo "---- All slurm job for ${SCRIPT_NAME} finishes."
+
+job_status=$(scontrol show job ${job_id} | awk '/JobState=/{print $1}')
+echo "Job status $job_status"
+if [[ $job_status == *"COMPLETED"* ]]; then
+    exit 0
+fi
+
+exit 1

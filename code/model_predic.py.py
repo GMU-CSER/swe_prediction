@@ -11,8 +11,8 @@ from torch_geometric.loader import NeighborLoader
 from eval_util import plot_prediction_map
 
 saved_model_mseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_mseloss.pth'
-#saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_sweloss.pth'
-saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_v2.pth'
+saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_sweloss.pth'
+#saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_v2.pth'
 saved_model_rmseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_rmseloss.pth'
 test_file = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_2025-02-26_merged.csv_snodas_mask.csv'
 test_file_pt = '/groups/ESS/whung/swe_gnn/data/gnn_testing_data_2025-02-26.pt'
@@ -85,12 +85,21 @@ def main():
     lat = np.rad2deg(np.arccos(scaled_lat))
     elv = pt_value_ori[:, 3]
     fsca = pt_value_ori[:, 25]
+    snodas_mask = pt_value_ori[:, 76]
     print('Scaled lon:', scaled_lon)
     print('Scaled lat:', scaled_lat)
     print('Original lon:', lon)
     print('Original lat:', lat)
     print('Original elv:', elv)
     print('Original fsca:', fsca)
+    print('Original snodas mask:', snodas_mask)
+
+    ## remove bad metadata
+    good_data = snodas_mask > 0
+    lon = lon[good_data]
+    lat = lat[good_data]
+    elv = elv[good_data]
+    fsca = fsca[good_data]
 
     ## read trained model and make prediction
     models = {
@@ -111,6 +120,7 @@ def main():
         print('---- Predicting...')
         test_data_pt = test_data_pt.to(device)
         prediction = make_prediction(model, test_data_pt)
+        prediction = prediction[good_data]
         print('Data shape:', prediction.shape)
         print('Check NaNs:', np.argwhere(np.isnan(prediction)))
         
@@ -129,13 +139,13 @@ def main():
 
     print('\n---- Saving to csv file...')
     #pred_data.to_csv(test_file[:-4]+'_pred.csv', index=False)
-    pred_data.to_csv(test_file[:-4]+'_pred_v2.csv', index=False)
+    #pred_data.to_csv(test_file[:-4]+'_pred_v2.csv', index=False)
     print('---- Prediction saved!')
 
     print('\n---- Plotting prediction maps...')
     plot_prediction_map(pred_data, 'GCN_MSELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_mseloss')
-    #plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_sweloss')
-    plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_v2')
+    plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_sweloss')
+    #plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_v2')
     plot_prediction_map(pred_data, 'GCN_RMSELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_rmseloss')
     print('---- Map saved!')
 

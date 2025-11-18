@@ -1,0 +1,205 @@
+/home/whung/geo_env/bin/python
+Python 3.9.23
+Pytorch deterministic mode: True
+Using device: cuda:0
+Loading data...
+Data loaded successfully with weights_only=False
+
+Detailed data structure:
+Loaded from: /groups/ESS/whung/swe_gnn/data/gnn_training_data.pt
+Type: <class 'torch_geometric.data.data.Data'>
+
+Attributes:
+x:
+  Type: <class 'torch.Tensor'>
+  Shape: torch.Size([1660613, 86])
+  Dtype: torch.float32
+  Device: cuda:0
+
+edge_index:
+  Type: <class 'torch.Tensor'>
+  Shape: torch.Size([2, 9963660])
+  Dtype: torch.int64
+  Device: cuda:0
+
+y:
+  Type: <class 'torch.Tensor'>
+  Shape: torch.Size([1660613])
+  Dtype: torch.float32
+  Device: cuda:0
+
+Other attributes:
+num_nodes: 1660613
+num_edges: 9963660
+num_node_features: 86
+
+Data loaded: 1660613 nodes, 9963660 edges, 86 features per node
+x: <class 'torch.Tensor'> | shape: torch.Size([1660613, 86])
+edge_index: <class 'torch.Tensor'> | shape: torch.Size([2, 9963660])
+y: <class 'torch.Tensor'> | shape: torch.Size([1660613])
+grid_id: <class 'torch.Tensor'> | shape: torch.Size([1660613])
+
+Updated model parameters:
+Input channels: 86
+
+Data loaders will be built per model based on model-specific hops (num_neighbors)...
+
+Training GCN...
+Model structure:
+GCN_Model(
+  (feature_extract): Sequential(
+    (0): Linear(in_features=86, out_features=128, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.2, inplace=False)
+  )
+  (conv1): GCNConv(128, 128)
+  (bn1): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (conv2): GCNConv(128, 128)
+  (bn2): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (conv3): GCNConv(128, 128)
+  (bn3): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (fusion): Sequential(
+    (0): Linear(in_features=384, out_features=128, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.2, inplace=False)
+  )
+  (linear1): Linear(in_features=128, out_features=32, bias=True)
+  (linear2): Linear(in_features=32, out_features=1, bias=True)
+)
+
+=== GCN 参数统计 ===
+总参数数: 114,881
+可训练参数数: 114,881
+不可训练参数数: 0
+模型大小估计: 0.44 MB (假设32位浮点)
+
+=== GCN 层级结构 ===
+feature_extract.0.weight: torch.Size([128, 86]) -> 11,008 参数
+feature_extract.0.bias: torch.Size([128]) -> 128 参数
+conv1.bias: torch.Size([128]) -> 128 参数
+conv1.lin.weight: torch.Size([128, 128]) -> 16,384 参数
+bn1.weight: torch.Size([128]) -> 128 参数
+bn1.bias: torch.Size([128]) -> 128 参数
+conv2.bias: torch.Size([128]) -> 128 参数
+conv2.lin.weight: torch.Size([128, 128]) -> 16,384 参数
+bn2.weight: torch.Size([128]) -> 128 参数
+bn2.bias: torch.Size([128]) -> 128 参数
+conv3.bias: torch.Size([128]) -> 128 参数
+conv3.lin.weight: torch.Size([128, 128]) -> 16,384 参数
+bn3.weight: torch.Size([128]) -> 128 参数
+bn3.bias: torch.Size([128]) -> 128 参数
+fusion.0.weight: torch.Size([128, 384]) -> 49,152 参数
+fusion.0.bias: torch.Size([128]) -> 128 参数
+linear1.weight: torch.Size([32, 128]) -> 4,096 参数
+linear1.bias: torch.Size([32]) -> 32 参数
+linear2.weight: torch.Size([1, 32]) -> 32 参数
+linear2.bias: torch.Size([1]) -> 1 参数
+GCN num_neighbors (hops): [16, 16, 16]
+/groups/ESS/whung/mambaforge/envs/gnn_torch/lib/python3.9/site-packages/torch_geometric/sampler/neighbor_sampler.py:61: UserWarning: Using 'NeighborSampler' without a 'pyg-lib' installation is deprecated and will be removed soon. Please install 'pyg-lib' for accelerated neighborhood sampling
+  warnings.warn(f"Using '{self.__class__.__name__}' without a "
+<stdin>:1014: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+<stdin>:1018: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+Epoch 001 | Train Loss (RMSE): 5.0360 | Val Loss (RMSE): 3.4776 | Train R²: 0.7639 | Val R²: 0.8339
+Epoch 002 | Train Loss (RMSE): 3.7335 | Val Loss (RMSE): 3.1071 | Train R²: 0.8249 | Val R²: 0.8518
+Epoch 003 | Train Loss (RMSE): 3.4646 | Val Loss (RMSE): 2.8474 | Train R²: 0.8375 | Val R²: 0.8640
+Epoch 004 | Train Loss (RMSE): 3.2511 | Val Loss (RMSE): 2.7495 | Train R²: 0.8476 | Val R²: 0.8687
+Epoch 005 | Train Loss (RMSE): 3.0659 | Val Loss (RMSE): 2.5436 | Train R²: 0.8562 | Val R²: 0.8786
+Epoch 006 | Train Loss (RMSE): 2.9509 | Val Loss (RMSE): 2.4246 | Train R²: 0.8616 | Val R²: 0.8844
+Epoch 007 | Train Loss (RMSE): 2.8086 | Val Loss (RMSE): 2.2606 | Train R²: 0.8683 | Val R²: 0.8920
+Epoch 008 | Train Loss (RMSE): 2.7347 | Val Loss (RMSE): 2.2609 | Train R²: 0.8718 | Val R²: 0.8921
+Epoch 009 | Train Loss (RMSE): 2.6011 | Val Loss (RMSE): 2.1285 | Train R²: 0.8780 | Val R²: 0.8985
+Epoch 010 | Train Loss (RMSE): 2.5402 | Val Loss (RMSE): 1.9520 | Train R²: 0.8809 | Val R²: 0.9068
+Epoch 011 | Train Loss (RMSE): 2.4524 | Val Loss (RMSE): 1.9041 | Train R²: 0.8850 | Val R²: 0.9090
+Epoch 012 | Train Loss (RMSE): 2.3970 | Val Loss (RMSE): 1.8090 | Train R²: 0.8876 | Val R²: 0.9136
+Epoch 013 | Train Loss (RMSE): 2.3034 | Val Loss (RMSE): 1.7605 | Train R²: 0.8920 | Val R²: 0.9159
+Epoch 014 | Train Loss (RMSE): 2.2519 | Val Loss (RMSE): 1.6720 | Train R²: 0.8944 | Val R²: 0.9201
+Epoch 015 | Train Loss (RMSE): 2.1981 | Val Loss (RMSE): 1.6327 | Train R²: 0.8969 | Val R²: 0.9221
+Epoch 016 | Train Loss (RMSE): 2.1346 | Val Loss (RMSE): 1.5848 | Train R²: 0.8999 | Val R²: 0.9243
+Epoch 017 | Train Loss (RMSE): 2.0967 | Val Loss (RMSE): 1.5759 | Train R²: 0.9017 | Val R²: 0.9249
+Epoch 018 | Train Loss (RMSE): 2.0366 | Val Loss (RMSE): 1.5829 | Train R²: 0.9045 | Val R²: 0.9244
+Epoch 019 | Train Loss (RMSE): 2.0059 | Val Loss (RMSE): 1.5027 | Train R²: 0.9059 | Val R²: 0.9282
+Epoch 020 | Train Loss (RMSE): 1.9465 | Val Loss (RMSE): 1.4831 | Train R²: 0.9087 | Val R²: 0.9294
+Epoch 021 | Train Loss (RMSE): 1.9169 | Val Loss (RMSE): 1.3126 | Train R²: 0.9101 | Val R²: 0.9374
+Epoch 022 | Train Loss (RMSE): 1.8436 | Val Loss (RMSE): 1.3149 | Train R²: 0.9136 | Val R²: 0.9373
+Epoch 023 | Train Loss (RMSE): 1.8900 | Val Loss (RMSE): 1.2918 | Train R²: 0.9114 | Val R²: 0.9383
+Epoch 024 | Train Loss (RMSE): 1.7934 | Val Loss (RMSE): 1.3414 | Train R²: 0.9159 | Val R²: 0.9363
+Epoch 025 | Train Loss (RMSE): 1.7567 | Val Loss (RMSE): 1.2400 | Train R²: 0.9176 | Val R²: 0.9408
+Epoch 026 | Train Loss (RMSE): 1.7416 | Val Loss (RMSE): 1.1534 | Train R²: 0.9183 | Val R²: 0.9449
+Epoch 027 | Train Loss (RMSE): 1.7243 | Val Loss (RMSE): 1.1072 | Train R²: 0.9192 | Val R²: 0.9472
+Epoch 028 | Train Loss (RMSE): 1.6845 | Val Loss (RMSE): 1.0974 | Train R²: 0.9210 | Val R²: 0.9476
+Epoch 029 | Train Loss (RMSE): 1.6719 | Val Loss (RMSE): 1.0523 | Train R²: 0.9216 | Val R²: 0.9497
+Epoch 030 | Train Loss (RMSE): 1.6481 | Val Loss (RMSE): 1.1828 | Train R²: 0.9227 | Val R²: 0.9435
+Epoch 031 | Train Loss (RMSE): 1.6562 | Val Loss (RMSE): 1.1153 | Train R²: 0.9223 | Val R²: 0.9469
+Epoch 032 | Train Loss (RMSE): 1.6303 | Val Loss (RMSE): 1.0552 | Train R²: 0.9236 | Val R²: 0.9497
+Epoch 033 | Train Loss (RMSE): 1.6250 | Val Loss (RMSE): 1.1606 | Train R²: 0.9238 | Val R²: 0.9450
+Epoch 034 | Train Loss (RMSE): 1.5599 | Val Loss (RMSE): 0.9692 | Train R²: 0.9269 | Val R²: 0.9537
+Epoch 035 | Train Loss (RMSE): 1.5387 | Val Loss (RMSE): 0.9777 | Train R²: 0.9279 | Val R²: 0.9533
+Epoch 036 | Train Loss (RMSE): 1.5363 | Val Loss (RMSE): 1.0853 | Train R²: 0.9280 | Val R²: 0.9482
+Epoch 037 | Train Loss (RMSE): 1.5298 | Val Loss (RMSE): 1.0045 | Train R²: 0.9283 | Val R²: 0.9520
+Epoch 038 | Train Loss (RMSE): 1.4970 | Val Loss (RMSE): 1.0151 | Train R²: 0.9298 | Val R²: 0.9515
+Epoch 039 | Train Loss (RMSE): 1.5238 | Val Loss (RMSE): 1.0356 | Train R²: 0.9286 | Val R²: 0.9505
+Epoch 040 | Train Loss (RMSE): 1.4634 | Val Loss (RMSE): 0.9653 | Train R²: 0.9314 | Val R²: 0.9539
+Epoch 041 | Train Loss (RMSE): 1.4795 | Val Loss (RMSE): 0.8978 | Train R²: 0.9306 | Val R²: 0.9572
+Epoch 042 | Train Loss (RMSE): 1.4624 | Val Loss (RMSE): 1.1024 | Train R²: 0.9314 | Val R²: 0.9476
+Epoch 043 | Train Loss (RMSE): 1.4382 | Val Loss (RMSE): 0.9903 | Train R²: 0.9326 | Val R²: 0.9527
+Epoch 044 | Train Loss (RMSE): 1.4376 | Val Loss (RMSE): 0.9571 | Train R²: 0.9326 | Val R²: 0.9544
+Epoch 045 | Train Loss (RMSE): 1.4311 | Val Loss (RMSE): 0.8847 | Train R²: 0.9329 | Val R²: 0.9578
+Epoch 046 | Train Loss (RMSE): 1.4464 | Val Loss (RMSE): 0.9978 | Train R²: 0.9322 | Val R²: 0.9524
+Epoch 047 | Train Loss (RMSE): 1.4084 | Val Loss (RMSE): 0.9640 | Train R²: 0.9340 | Val R²: 0.9540
+Epoch 048 | Train Loss (RMSE): 1.4003 | Val Loss (RMSE): 0.8039 | Train R²: 0.9343 | Val R²: 0.9616
+Epoch 049 | Train Loss (RMSE): 1.3829 | Val Loss (RMSE): 0.8584 | Train R²: 0.9352 | Val R²: 0.9590
+Epoch 050 | Train Loss (RMSE): 1.4024 | Val Loss (RMSE): 0.9366 | Train R²: 0.9342 | Val R²: 0.9553
+Epoch 051 | Train Loss (RMSE): 1.3896 | Val Loss (RMSE): 0.8208 | Train R²: 0.9348 | Val R²: 0.9608
+Epoch 052 | Train Loss (RMSE): 1.3713 | Val Loss (RMSE): 0.8260 | Train R²: 0.9357 | Val R²: 0.9605
+Epoch 053 | Train Loss (RMSE): 1.3462 | Val Loss (RMSE): 0.9092 | Train R²: 0.9369 | Val R²: 0.9567
+Epoch 054 | Train Loss (RMSE): 1.3560 | Val Loss (RMSE): 0.8555 | Train R²: 0.9364 | Val R²: 0.9592
+Epoch 055 | Train Loss (RMSE): 1.3475 | Val Loss (RMSE): 0.9062 | Train R²: 0.9368 | Val R²: 0.9567
+Epoch 056 | Train Loss (RMSE): 1.3384 | Val Loss (RMSE): 0.8187 | Train R²: 0.9372 | Val R²: 0.9609
+Epoch 057 | Train Loss (RMSE): 1.3084 | Val Loss (RMSE): 0.9136 | Train R²: 0.9387 | Val R²: 0.9567
+Epoch 058 | Train Loss (RMSE): 1.3618 | Val Loss (RMSE): 0.9042 | Train R²: 0.9361 | Val R²: 0.9571
+Epoch 059 | Train Loss (RMSE): 1.3378 | Val Loss (RMSE): 0.8026 | Train R²: 0.9373 | Val R²: 0.9617
+Epoch 060 | Train Loss (RMSE): 1.3256 | Val Loss (RMSE): 0.7837 | Train R²: 0.9378 | Val R²: 0.9626
+Epoch 061 | Train Loss (RMSE): 1.2899 | Val Loss (RMSE): 0.8037 | Train R²: 0.9395 | Val R²: 0.9617
+Epoch 062 | Train Loss (RMSE): 1.3038 | Val Loss (RMSE): 0.7594 | Train R²: 0.9389 | Val R²: 0.9637
+Epoch 063 | Train Loss (RMSE): 1.2909 | Val Loss (RMSE): 0.7808 | Train R²: 0.9395 | Val R²: 0.9627
+Epoch 064 | Train Loss (RMSE): 1.3054 | Val Loss (RMSE): 0.8157 | Train R²: 0.9388 | Val R²: 0.9610
+Epoch 065 | Train Loss (RMSE): 1.3043 | Val Loss (RMSE): 0.7476 | Train R²: 0.9388 | Val R²: 0.9643
+Epoch 066 | Train Loss (RMSE): 1.2950 | Val Loss (RMSE): 0.7592 | Train R²: 0.9393 | Val R²: 0.9637
+Epoch 067 | Train Loss (RMSE): 1.2661 | Val Loss (RMSE): 0.8085 | Train R²: 0.9406 | Val R²: 0.9614
+Epoch 068 | Train Loss (RMSE): 1.2875 | Val Loss (RMSE): 0.8349 | Train R²: 0.9396 | Val R²: 0.9601
+Epoch 069 | Train Loss (RMSE): 1.2595 | Val Loss (RMSE): 0.7432 | Train R²: 0.9409 | Val R²: 0.9646
+Epoch 070 | Train Loss (RMSE): 1.2601 | Val Loss (RMSE): 0.8218 | Train R²: 0.9409 | Val R²: 0.9608
+Epoch 071 | Train Loss (RMSE): 1.2444 | Val Loss (RMSE): 0.7762 | Train R²: 0.9417 | Val R²: 0.9629
+Epoch 072 | Train Loss (RMSE): 1.2722 | Val Loss (RMSE): 0.8097 | Train R²: 0.9403 | Val R²: 0.9613
+Epoch 073 | Train Loss (RMSE): 1.2507 | Val Loss (RMSE): 0.7592 | Train R²: 0.9414 | Val R²: 0.9638
+Epoch 074 | Train Loss (RMSE): 1.2604 | Val Loss (RMSE): 0.7704 | Train R²: 0.9409 | Val R²: 0.9633
+Epoch 075 | Train Loss (RMSE): 1.2494 | Val Loss (RMSE): 0.8468 | Train R²: 0.9414 | Val R²: 0.9597
+Epoch 076 | Train Loss (RMSE): 1.2399 | Val Loss (RMSE): 0.7912 | Train R²: 0.9419 | Val R²: 0.9622
+Epoch 077 | Train Loss (RMSE): 1.2291 | Val Loss (RMSE): 0.7841 | Train R²: 0.9424 | Val R²: 0.9626
+Epoch 078 | Train Loss (RMSE): 1.2649 | Val Loss (RMSE): 0.7280 | Train R²: 0.9407 | Val R²: 0.9652
+Epoch 079 | Train Loss (RMSE): 1.2284 | Val Loss (RMSE): 0.8597 | Train R²: 0.9424 | Val R²: 0.9591
+Epoch 080 | Train Loss (RMSE): 1.2344 | Val Loss (RMSE): 0.7869 | Train R²: 0.9421 | Val R²: 0.9624
+Epoch 081 | Train Loss (RMSE): 1.2188 | Val Loss (RMSE): 0.7347 | Train R²: 0.9429 | Val R²: 0.9649
+Epoch 082 | Train Loss (RMSE): 1.2073 | Val Loss (RMSE): 0.7242 | Train R²: 0.9434 | Val R²: 0.9654
+Epoch 083 | Train Loss (RMSE): 1.2332 | Val Loss (RMSE): 0.7008 | Train R²: 0.9422 | Val R²: 0.9666
+Epoch 084 | Train Loss (RMSE): 1.2162 | Val Loss (RMSE): 0.7648 | Train R²: 0.9430 | Val R²: 0.9635
+Epoch 085 | Train Loss (RMSE): 1.2054 | Val Loss (RMSE): 0.7096 | Train R²: 0.9435 | Val R²: 0.9661
+Epoch 086 | Train Loss (RMSE): 1.2285 | Val Loss (RMSE): 0.7106 | Train R²: 0.9424 | Val R²: 0.9661
+Epoch 087 | Train Loss (RMSE): 1.1954 | Val Loss (RMSE): 0.7339 | Train R²: 0.9440 | Val R²: 0.9650
+Epoch 088 | Train Loss (RMSE): 1.2207 | Val Loss (RMSE): 0.6934 | Train R²: 0.9428 | Val R²: 0.9669
+Epoch 089 | Train Loss (RMSE): 1.2288 | Val Loss (RMSE): 0.6765 | Train R²: 0.9424 | Val R²: 0.9677
+Epoch 090 | Train Loss (RMSE): 1.1916 | Val Loss (RMSE): 0.7206 | Train R²: 0.9441 | Val R²: 0.9656
+Epoch 091 | Train Loss (RMSE): 1.2031 | Val Loss (RMSE): 0.7421 | Train R²: 0.9436 | Val R²: 0.9647
+Epoch 092 | Train Loss (RMSE): 1.1868 | Val Loss (RMSE): 0.7282 | Train R²: 0.9444 | Val R²: 0.9652
+Epoch 093 | Train Loss (RMSE): 1.2023 | Val Loss (RMSE): 0.7293 | Train R²: 0.9436 | Val R²: 0.9652
+Epoch 094 | Train Loss (RMSE): 1.1862 | Val Loss (RMSE): 0.7678 | Train R²: 0.9444 | Val R²: 0.9637
+Epoch 095 | Train Loss (RMSE): 1.1867 | Val Loss (RMSE): 0.7331 | Train R²: 0.9444 | Val R²: 0.9651
+Epoch 096 | Train Loss (RMSE): 1.2056 | Val Loss (RMSE): 0.7128 | Train R²: 0.9435 | Val R²: 0.9660
+Epoch 097 | Train Loss (RMSE): 1.1656 | Val Loss (RMSE): 0.6634 | Train R²: 0.9453 | Val R²: 0.9684
+Epoch 098 | Train Loss (RMSE): 1.1672 | Val Loss (RMSE): 0.7217 | Train R²: 0.9453 | Val R²: 0.9655
+Epoch 099 | Train Loss (RMSE): 1.1660 | Val Loss (RMSE): 0.7499 | Train R²: 0.9453 | Val R²: 0.9642
+Epoch 100 | Train Loss (RMSE): 1.1527 | Val Loss (RMSE): 0.7876 | Train R²: 0.9460 | Val R²: 0.9626
+GCN Test Metrics:
+  R²: 0.9609
+  RMSE: 0.9180
+Model saved to /groups/ESS/whung/swe_gnn/model/GCN_model_mseloss.pth
