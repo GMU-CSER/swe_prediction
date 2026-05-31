@@ -174,9 +174,6 @@ class SWELoss(nn.Module):
         if torch.isclose(obj_min, obj_max):
             obj_max = obj_min + 1.0
         bin_edges = torch.linspace(obj_min, obj_max, steps=num_bins + 1, device=objective.device)
-        print(bin_edges)
-        print(torch.flip(bin_edges, dim=0))
-        sys.exit(1)
 
         total_volume = torch.sum(swe_volume)
         if total_volume.item() == 0.0:
@@ -185,7 +182,7 @@ class SWELoss(nn.Module):
         # Compute volume for each bin
         bin_volumes = []
         if reverse == True:
-            bin_edges = torch.flip(bin_edges)
+            bin_edges = torch.flip(bin_edges, dims=[0])
             for i in range(1, len(bin_edges)):
                 mask = (objective < bin_edges[i - 1]) & (objective >= bin_edges[i])
                 bin_volumes.append(torch.sum(swe_volume[mask]))
@@ -257,11 +254,11 @@ class SWELoss(nn.Module):
         )
         curve_pred = curve_pred_elev * self.elevation_curve_weight + curve_pred_temp * self.temperature_curve_weight + curve_pred_precip * self.precipitation_curve_weight
         curve_pred = curve_pred.to(y_pred.device)
-        print(f"    -> Predicted curve computed (len={curve_pred.numel()})")
-        print(f"elevation pred curve: {curve_pred_elev}")
-        print(f"temperature pred curve: {curve_pred_temp}")
-        print(f"precipitation pred curve: {curve_pred_precip}")
-        print(f"final pred curve: {curve_pred}")
+        #print(f"    -> Predicted curve computed (len={curve_pred.numel()})")
+        #print(f"elevation pred curve: {curve_pred_elev}")
+        #print(f"temperature pred curve: {curve_pred_temp}")
+        #print(f"precipitation pred curve: {curve_pred_precip}")
+        #print(f"final pred curve: {curve_pred}")
 
         # Reference curve
         ref_curve_elev = self._compute_cumulative_curve(
@@ -275,17 +272,17 @@ class SWELoss(nn.Module):
         )
         ref_curve = ref_curve_elev * self.elevation_curve_weight + ref_curve_temp * self.temperature_curve_weight + ref_curve_precip * self.precipitation_curve_weight
         ref_curve = ref_curve.to(y_pred.device)
-        print(f"    -> Reference curve computed (len={ref_curve.numel()})")
-        print(f"elevation ref curve: {ref_curve_elev}")
-        print(f"temperature ref curve: {ref_curve_temp}")
-        print(f"precipitation ref curve: {ref_curve_precip}")
-        print(f"final ref curve: {ref_curve}")
+        #print(f"    -> Reference curve computed (len={ref_curve.numel()})")
+        #print(f"elevation ref curve: {ref_curve_elev}")
+        #print(f"temperature ref curve: {ref_curve_temp}")
+        #print(f"precipitation ref curve: {ref_curve_precip}")
+        #print(f"final ref curve: {ref_curve}")
 
         # Compute L2 difference
         loss = torch.mean((curve_pred - ref_curve) ** 2)
 
         print(f"\n[HypsometryDiscrepancy] <<< Final loss: {loss.item():.6f}\n")
-        sys.exit(1)
+        #sys.exit(1)
         return loss
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, batch: Data = None) -> torch.Tensor:
@@ -435,7 +432,7 @@ CONFIG = {
         'epochs': 50,
         'train_ratio': 0.8,
         'val_ratio': 0.1,
-        'seed': 23,
+        'seed': 36,
         'neighbors_by_model': {
             'SimplifiedGraphSAGE': [16, 16],
             'GraphSAGE': [16, 16, 16],
@@ -444,7 +441,7 @@ CONFIG = {
         }
     },
     'visualization': {
-        'save_dir': '/groups/ESS/whung/swe_gnn/results_v2',
+        'save_dir': '/groups/ESS/whung/swe_gnn/results_sweloss_elv',
         'figsize': (12, 8),
         'dpi': 300
     }
@@ -1800,8 +1797,8 @@ def main():
 
         # 保存模型
         #model_save_path = '/projects/kzhou6/bcui2/git_submit/SWE_25/model/' + f"{model_name}_model.pth"
-        model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_v2.pth"
-        #model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_sweloss.pth"
+        #model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_v2.pth"
+        model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_sweloss_elv.pth"
         save_model(model, model_save_path)
 
     # 停止资源监控

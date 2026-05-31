@@ -9,8 +9,10 @@ import pickle
 from torch_geometric.data import Data
 from sklearn.metrics import mean_squared_error, r2_score
 
+from eval_util import input_density_plot
+
 train_file_path = '/groups/ESS/whung/swe_gnn/data/all_points_final_merged_training_snodas_mask_resnet_all_batch.csv'
-test_file_date = '2025-02-26'
+test_file_date = '2025-03-26'
 test_file_path = f'/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_{test_file_date}_merged.csv_snodas_mask.csv'
 #test_file_path = '/groups/ESS/whung/swe_gnn/data/test_data_predicted_latest_2025-01-15.csv_snodas_mask.csv'
 
@@ -120,8 +122,38 @@ if 'date' in select_columns:
 agg_cols['swe_value'] = 'mean'
 
 train_merged_nodes = train_data.groupby('grid_id').agg(agg_cols).reset_index()
-
 test_merged_nodes = test_data.groupby('grid_id').agg(agg_cols).reset_index()
+
+# filtering
+train_merged_nodes.loc[train_merged_nodes['air_temperature_tmmx'] < 250, 'air_temperature_tmmx'] = np.nan
+train_merged_nodes.loc[train_merged_nodes['air_temperature_tmmn'] < 250, 'air_temperature_tmmn'] = np.nan
+train_merged_nodes.loc[train_merged_nodes['Elevation'] < 0, 'Elevation'] = np.nan
+train_merged_nodes.loc[train_merged_nodes['Slope'] <= 0, 'Slope'] = np.nan
+train_merged_nodes = train_merged_nodes.dropna()
+
+test_merged_nodes.loc[test_merged_nodes['air_temperature_tmmx'] < 250, 'air_temperature_tmmx'] = np.nan
+test_merged_nodes.loc[test_merged_nodes['air_temperature_tmmn'] < 250, 'air_temperature_tmmn'] = np.nan
+test_merged_nodes.loc[test_merged_nodes['Elevation'] < 0, 'Elevation'] = np.nan
+test_merged_nodes.loc[test_merged_nodes['Slope'] <= 0, 'Slope'] = np.nan
+#test_merged_nodes = test_merged_nodes.dropna()
+
+
+# input verification
+# temp_avg is only used for value checking
+train_merged_nodes['temp_avg'] = (train_merged_nodes['air_temperature_tmmx']+train_merged_nodes['air_temperature_tmmn'])/2
+train_merged_nodes.loc[train_merged_nodes['temp_avg'] == 0, 'temp_avg'] = np.nan
+
+print('swe', train_merged_nodes['swe_value'].min(), train_merged_nodes['swe_value'].max())
+print('temp', train_merged_nodes['temp_avg'].min(), train_merged_nodes['temp_avg'].max())
+print('precip', train_merged_nodes['precipitation_amount'].min(), train_merged_nodes['precipitation_amount'].max())
+print('elv', train_merged_nodes['Elevation'].min(), train_merged_nodes['Elevation'].max())
+
+#plot_var_list = ['lat', 'lon', 'Elevation', 'Aspect', 'Curvature', 'Eastness', 'Northness', 'Slope', 'temp_avg', 'mean_vapor_pressure_deficit', 'potential_evapotranspiration', 'precipitation_amount', 'relative_humidity_rmax', 'wind_speed', 'day_of_year', 'water_year', 'swe_value']
+#plot_label_list = ['Lat', 'Lon', 'ELV', 'Aspect', 'Curvature', 'Eastness', 'Northness', 'Slope', 'TEMP', 'VPD', 'Evapo', 'PRECIP', 'RH', 'WS', 'DOY', 'Water_year', 'SWE']
+#for var, label in zip(plot_var_list, plot_label_list):
+#    input_density_plot(train_merged_nodes[var], label, '/groups/ESS/whung/swe_gnn/data/input_density')
+#exit()
+
 
 # ⏳ Temporal encoding
 train_merged_nodes['sin_day'] = np.sin(2 * np.pi * train_merged_nodes['day_of_year'] / 365)
@@ -146,7 +178,7 @@ test_merged_nodes['sin_lon'] = np.sin(test_merged_nodes['lon_rad'])
 test_merged_nodes['cos_lon'] = np.cos(test_merged_nodes['lon_rad'])
 
 # 🧪 Final feature selection
-exclude = ['grid_id', 'lat', 'lon', 'lat_rad', 'lon_rad', 'date', 'day_of_year', 'swe_value']
+exclude = ['grid_id', 'lat', 'lon', 'lat_rad', 'lon_rad', 'date', 'day_of_year', 'swe_value', 'water_year', 'temp_avg']
 final_columns = [col for col in train_merged_nodes.columns if col not in exclude]
 final_columns = np.sort(final_columns).tolist()   # make sure columns always have the same order 
 #final_columns += ['sin_lat', 'cos_lat', 'sin_lon', 'cos_lon', 'sin_day', 'cos_day']
@@ -211,10 +243,10 @@ def build_graph(merged_nodes, df_scaled, is_test=False):
     print("\n Graph Summary")
     print(f"🔹 Nodes: {graph_data.num_nodes}")
     print(f"🔹 Edges: {graph_data.num_edges}")
-    try:
-        print(f"🔹 grid_id: {graph_data.grid_id}")
-    except:
-        print("🔹 grid_id: not found")
+    #try:
+    #    print(f"🔹 grid_id: {graph_data.grid_id}")
+    #except:
+    #    print("🔹 grid_id: not found")
     print(f"🔹 Features per node: {graph_data.num_node_features}")
     deg = degree(edge_index[0], num_nodes=graph_data.num_nodes)
     print(f"   • Min Degree : {deg.min().item()}")
@@ -224,16 +256,15 @@ def build_graph(merged_nodes, df_scaled, is_test=False):
 
     return graph_data
 
+# 💾 Save graph
 #print("-----------------------<<< Building training graph >>>-----------------------\n")
 #train_graph_data = build_graph(train_merged_nodes, train_df_scaled, is_test=False)
-print("\n-----------------------<<< Building test graph >>>-----------------------\n")
-test_graph_data = build_graph(test_merged_nodes, test_df_scaled, is_test=True)
-
-# 💾 Save graph
 #train_save_path = '/groups/ESS/whung/swe_gnn/data/gnn_training_data.pt'
 #torch.save(train_graph_data, train_save_path)
 #print(f"\n Graph data saved at: {train_save_path}")
 
+print("\n-----------------------<<< Building test graph >>>-----------------------\n")
+test_graph_data = build_graph(test_merged_nodes, test_df_scaled, is_test=True)
 test_save_path = f'/groups/ESS/whung/swe_gnn/data/gnn_testing_data_{test_file_date}.pt'
 torch.save(test_graph_data, test_save_path)
 print(f"\n Graph data saved at: {test_save_path}")
