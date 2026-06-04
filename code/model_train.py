@@ -287,8 +287,8 @@ class SWELoss(nn.Module):
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, batch: Data = None) -> torch.Tensor:
         # 基础 RMSE
-        #base = torch.sqrt(self._mse(y_pred, y_true))
-        base = self._weighted_rmse(y_pred, y_true)
+        base = torch.sqrt(self._mse(y_pred, y_true))
+        #base = self._weighted_rmse(y_pred, y_true)
         #base = self._smooth_weighted_rmse(y_pred, y_true, alpha=1.0, beta=0.1)
 
         # Hypsometry 物理项（可选）
@@ -429,10 +429,10 @@ CONFIG = {
         'num_neighbors': [16, 16],
         'learning_rate': 1e-3,
         'weight_decay': 1e-5,
-        'epochs': 50,
+        'epochs': 100,
         'train_ratio': 0.8,
         'val_ratio': 0.1,
-        'seed': 36,
+        'seed': 42,
         'neighbors_by_model': {
             'SimplifiedGraphSAGE': [16, 16],
             'GraphSAGE': [16, 16, 16],
@@ -1755,7 +1755,7 @@ def main():
         # 使用增强的 SWELoss（如无参考曲线则自动退化为 RMSE 行为）
         loss_fn = SWELoss(
             base_weight=1.0,
-            hypsometry_weight=10.0,  # 可根据需要在 CONFIG 中暴露
+            hypsometry_weight=100.0,  # 可根据需要在 CONFIG 中暴露
             elevation_feature_index=3,  # 若高程在 x 的列索引已知，可填写索引
             temperature_feature_index=6,
             precipitation_feature_index=49,
