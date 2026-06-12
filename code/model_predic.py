@@ -11,17 +11,25 @@ from torch_geometric.loader import NeighborLoader
 from eval_util import plot_prediction_map
 
 saved_model_mseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_mseloss.pth'
-saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_sweloss.pth'
+saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_sweloss_elv_temp.pth'
 #saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_v2.pth'
 saved_model_rmseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_rmseloss.pth'
-test_file = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_2025-02-26_merged.csv_snodas_mask.csv'
-test_file_pt = '/groups/ESS/whung/swe_gnn/data/gnn_testing_data_2025-02-26.pt'
+
+test_date = '2025-03-26'
+test_file = f'/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_{test_date}_merged.csv_snodas_mask.csv'
+test_file_pt = f'/groups/ESS/whung/swe_gnn/data/gnn_testing_data_{test_date}.pt'
+
+outdir_mseloss = '/groups/ESS/whung/swe_gnn/results_mseloss'
+outdir_rmseloss = '/groups/ESS/whung/swe_gnn/results_rmseloss'
+outdir_sweloss = '/groups/ESS/whung/swe_gnn/results_sweloss_elv_temp'
+output_file = test_file[:-4]+'_pred_elv_temp.csv'
 
 with open('/groups/ESS/whung/swe_gnn/data/scaler.pkl','rb') as f:
     scaler = pickle.load(f)
+    scaler = scaler['scaler']
 
 model_params = {
-    'in_channels': 86,  # number of input columns
+    'in_channels': 84,  # number of input columns
     'hidden_channels': 64,
     'out_channels': 1,
     'num_heads': 4,
@@ -49,6 +57,9 @@ def main():
     print(test_data.columns)
 
     test_data_pt = torch.load(test_file_pt, map_location=device, weights_only=False)
+    #print(test_data_pt.x)
+    #print(test_data_pt.x[np.isnan(test_data_pt.x.numpy())])
+    #exit()
     # 打印详细的数据信息
     print("\n---- Graph data structure:")
     print(f"Loaded from: {test_file_pt}")
@@ -79,13 +90,13 @@ def main():
     print('\n---- Extracting original lat/lon...')
     pt_value = test_data_pt.x.cpu().numpy()
     pt_value_ori = scaler.inverse_transform(pt_value)
-    scaled_lon = pt_value_ori[:, 24]
-    scaled_lat = pt_value_ori[:, 23]
+    scaled_lon = pt_value_ori[:, 23]
+    scaled_lat = pt_value_ori[:, 22]
     lon = -1 * np.rad2deg(np.arccos(scaled_lon))   # arccos always returns positvie values
     lat = np.rad2deg(np.arccos(scaled_lat))
     elv = pt_value_ori[:, 3]
-    fsca = pt_value_ori[:, 25]
-    snodas_mask = pt_value_ori[:, 76]
+    fsca = pt_value_ori[:, 24]
+    snodas_mask = pt_value_ori[:, 75]
     print('Scaled lon:', scaled_lon)
     print('Scaled lat:', scaled_lat)
     print('Original lon:', lon)
@@ -122,6 +133,7 @@ def main():
         prediction = make_prediction(model, test_data_pt)
         prediction = prediction[good_data]
         print('Data shape:', prediction.shape)
+        print('Data range:', prediction.min(), prediction.max())
         print('Check NaNs:', np.argwhere(np.isnan(prediction)))
         
         output[f"predicted_swe_{model_name}"] = prediction
@@ -138,17 +150,17 @@ def main():
     print(pred_data)
 
     print('\n---- Saving to csv file...')
-    #pred_data.to_csv(test_file[:-4]+'_pred.csv', index=False)
-    #pred_data.to_csv(test_file[:-4]+'_pred_v2.csv', index=False)
+    pred_data.to_csv(output_file, index=False)
     print('---- Prediction saved!')
 
     print('\n---- Plotting prediction maps...')
-    plot_prediction_map(pred_data, 'GCN_MSELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_mseloss')
-    plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_sweloss')
-    #plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_v2')
-    plot_prediction_map(pred_data, 'GCN_RMSELoss', pred_data['date'][0], '/groups/ESS/whung/swe_gnn/results_rmseloss')
+    plot_prediction_map(pred_data, 'GCN_MSELoss', pred_data['date'][0], outdir_mseloss)
+    plot_prediction_map(pred_data, 'GCN_SWELoss', pred_data['date'][0], outdir_sweloss)
+    plot_prediction_map(pred_data, 'GCN_RMSELoss', pred_data['date'][0], outdir_rmseloss)
     print('---- Map saved!')
 
 
 if __name__ == "__main__":
     main()
+
+ 
