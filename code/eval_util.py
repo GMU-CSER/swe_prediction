@@ -126,15 +126,12 @@ def plot_daily_boxplot(
     date,
     pic_path
 ):
-    obs = [obs[i] * 0.0254 for i in range(len(obs))]  # inch -> meter
-    obs_avg = np.array([np.mean(obs[i]) for i in range(len(obs))])
-    obs_std = np.array([np.std(obs[i]) for i in range(len(obs))])
-
+    pred = [obs] + pred
     xtick = np.arange(len(date))
     xlim = [xtick[0] - 0.5, xtick[-1] + 0.5]
-    interval = [-0.3, -0.1, 0.1, 0.3]
-    labels = ['MSELoss', 'SWELoss', 'RMSELoss', 'ET']
-    colors = ['pink', 'crimson', 'orange', 'royalblue']
+    interval = [-0.28, -0.14, 0, 0.14, 0.28]
+    labels = ['Obs', 'MSELoss', 'SWELoss', 'RMSELoss', 'ET']
+    colors = ['lightgray', 'pink', 'crimson', 'orange', 'skyblue']
 
     fig, ax = plt.subplots(figsize=(15, 9))
     h = ax.get_position()
@@ -151,18 +148,15 @@ def plot_daily_boxplot(
         plt.boxplot(
             data,
             positions=xtick + interval[i],
-            widths=0.2,
+            widths=0.12,
             showfliers=False,
             patch_artist=True,
-            boxprops=dict(linewidth=2, facecolor=colors[i]),
-            capprops=dict(linewidth=2),
-            medianprops=dict(linewidth=2, color='k'),
+            boxprops=dict(linewidth=1.5, facecolor=colors[i]),
+            capprops=dict(linewidth=1.5),
+            medianprops=dict(linewidth=1.5, color='k'),
             label=labels[i]
         )
         del data
-
-    plt.plot(xtick, obs_avg, linewidth=3, color='grey')
-    plt.errorbar(xtick, obs_avg, yerr=obs_std, linewidth=3, color='grey', fmt='o', label='Observation')
 
     ax.set_xlim(xlim)
     ax.set_xticks(xtick)
@@ -232,6 +226,10 @@ def plot_scatter(
 ):
     X = np.array(X) * 0.0254  # in -> m
     Y = np.array(Y) * 0.0254  # in -> m
+
+    idx = X>0
+    X = X[idx]
+    Y = Y[idx]
     r2, rmse = stats_calculation(X, Y)
 
     # data density
@@ -275,7 +273,7 @@ def plot_scatter(
     cb.ax.tick_params(labelsize=24)
 
     plt.tight_layout()
-    plt.savefig(f'{pic_path}/obs_site_comparison.png')
+    plt.savefig(f'{pic_path}/obs_site_comparison_nozero.png')
     plt.close()
 
 def plot_elv_r2_rmse(
@@ -292,7 +290,7 @@ def plot_elv_r2_rmse(
         ax.spines[axis].set_linewidth(3)
     ax.tick_params(labelsize=24)
 
-    cs = plt.scatter(elv, r2, c=rmse, s=30, cmap='turbo', vmin=0, vmax=1, alpha=0.8)
+    cs = plt.scatter(elv, r2, c=rmse, s=30, cmap='turbo', vmin=0, vmax=0.5, alpha=0.8)
 
     plt.title(f'Elevation-R2-RMSE ({model_option})', fontsize=24)
     plt.xlabel('Elevation', fontsize=24)
@@ -360,7 +358,7 @@ def plot_stats_map(
             cmap = 'seismic'
             cb_ext = 'neither'
         elif item == 'RMSE':
-            vlim = [0, 1]
+            vlim = [0, 0.5]
             cmap = 'turbo'
             cb_ext = 'max'
 
@@ -409,7 +407,7 @@ def plot_avg_swe_map(
         ax.spines[axis].set_linewidth(3)
     ax.tick_params(labelsize=24)
 
-    plt.title(f'Average SWE at SNOTEL sites in Jan-Feb 2025', fontsize=24)
+    plt.title(f'Average SWE at SNOTEL sites in Jan-Mar 2025', fontsize=24)
     coast.plot(ax=ax, linewidth=1, color='k')
 
     cs = plt.scatter(lon, lat, c=swe, s=100, marker='.', cmap='turbo', vmin=0, vmax=1)
@@ -529,5 +527,3 @@ def plot_model_scatter(
     plt.tight_layout()
     plt.savefig(f'{pic_path}/{prod_option}_site_comparison.png')
     plt.close()
-
- 

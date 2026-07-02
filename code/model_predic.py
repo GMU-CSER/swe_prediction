@@ -11,20 +11,20 @@ from torch_geometric.loader import NeighborLoader
 from eval_util import plot_prediction_map
 
 saved_model_mseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_mseloss.pth'
-saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_sweloss_elv_temp.pth'
+saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_sweloss_elv_precip_nofake.pth'
 #saved_model_sweloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_v2.pth'
 saved_model_rmseloss = '/groups/ESS/whung/swe_gnn/model/GCN_model_rmseloss.pth'
 
-test_date = '2025-03-26'
+test_date = '2025-01-29'
 test_file = f'/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_{test_date}_merged.csv_snodas_mask.csv'
 test_file_pt = f'/groups/ESS/whung/swe_gnn/data/gnn_testing_data_{test_date}.pt'
 
 outdir_mseloss = '/groups/ESS/whung/swe_gnn/results_mseloss'
 outdir_rmseloss = '/groups/ESS/whung/swe_gnn/results_rmseloss'
-outdir_sweloss = '/groups/ESS/whung/swe_gnn/results_sweloss_elv_temp'
-output_file = test_file[:-4]+'_pred_elv_temp.csv'
+outdir_sweloss = '/groups/ESS/whung/swe_gnn/results_sweloss_elv_precip_nofake'
+output_file = test_file[:-4]+'_pred_elv_precip_nofake.csv'
 
-with open('/groups/ESS/whung/swe_gnn/data/scaler.pkl','rb') as f:
+with open('/groups/ESS/whung/swe_gnn/data/scaler_nofake.pkl','rb') as f:
     scaler = pickle.load(f)
     scaler = scaler['scaler']
 
@@ -162,5 +162,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
- 

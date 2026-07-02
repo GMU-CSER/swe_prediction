@@ -1,9 +1,10 @@
 
 import numpy as np
 import pandas as pd
+from eval_util import input_density_plot
 
 data_dir = '/groups/ESS/whung/swe_gnn/data/testing_snodas_mask'
-target_date = '2025-02-26'
+target_date = '2025-03-26'
 target_date_dt = pd.to_datetime(target_date, format='%Y-%m-%d')
 
 required_columns = ['SWE', 'air_temperature_tmmn', 'potential_evapotranspiration', 'mean_vapor_pressure_deficit', 'relative_humidity_rmax', 'relative_humidity_rmin', 'precipitation_amount', 'air_temperature_tmmx', 'wind_speed', 'fsca']
@@ -39,6 +40,7 @@ print('------ Current day:', target_date)
 print('Data shape:', current_day_data.shape)
 print('Data column:')
 print(current_day_data.columns)
+#print(current_day_data['Slope'].max(), current_day_data['Slope'].min())
 
 all_data = current_day_data
 

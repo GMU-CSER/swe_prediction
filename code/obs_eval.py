@@ -56,7 +56,7 @@ for date in target_dates:
     print('Num of site observation:', len(obs_swe))
 
     ## swe prediction
-    pred_data = pd.read_csv(f'{pred_path}/testing_all_ready_{date}_merged.csv_snodas_mask_pred_elv_temp.csv')
+    #pred_data = pd.read_csv(f'{pred_path}/testing_all_ready_{date}_merged.csv_snodas_mask_pred_elv_temp.csv')
     pred_data_et = pd.read_csv(f'{pred_path_et}/test_data_predicted_latest_{date}.csv_snodas_mask.csv')
 
     #pred_data_et.loc[(pred_data_et['Elevation'] <= 0) | (pred_data_et['snodas_mask'] < 0) | (pred_data_et['fsca'] < 0), 'predicted_swe'] = np.nan
@@ -65,17 +65,17 @@ for date in target_dates:
     #plot_prediction_map(pred_data_et, 'ExtraTree', date, outdir_et)
     #continue
 
-    pred_lon = np.round(pred_data['lon'], 4)
-    pred_lat = np.round(pred_data['lat'], 4)
+    #pred_lon = np.round(pred_data['lon'], 4)
+    #pred_lat = np.round(pred_data['lat'], 4)
     pred_lon_et = np.round(pred_data_et['lon'], 4)
     pred_lat_et = np.round(pred_data_et['lat'], 4)
 
-    pred_elv = mapping(obs_lon, obs_lat, pred_lon, pred_lat, pred_data['Elevation'])
-    pred_swe_mseloss = mapping(obs_lon, obs_lat, pred_lon, pred_lat, pred_data['predicted_swe_GCN_MSELoss'])
-    pred_swe_sweloss = mapping(obs_lon, obs_lat, pred_lon, pred_lat, pred_data['predicted_swe_GCN_SWELoss'])
-    pred_swe_rmseloss = mapping(obs_lon, obs_lat, pred_lon, pred_lat, pred_data['predicted_swe_GCN_RMSELoss'])
+    #pred_elv = mapping(obs_lon, obs_lat, pred_lon, pred_lat, pred_data['Elevation'])
+    #pred_swe_mseloss = mapping(obs_lon, obs_lat, pred_lon, pred_lat, pred_data['predicted_swe_GCN_MSELoss'])
+    #pred_swe_sweloss = mapping(obs_lon, obs_lat, pred_lon, pred_lat, pred_data['predicted_swe_GCN_SWELoss'])
+    #pred_swe_rmseloss = mapping(obs_lon, obs_lat, pred_lon, pred_lat, pred_data['predicted_swe_GCN_RMSELoss'])
 
-    #pred_elv = mapping(obs_lon, obs_lat, pred_lon_et, pred_lat_et, pred_data_et['Elevation'])
+    pred_elv = mapping(obs_lon, obs_lat, pred_lon_et, pred_lat_et, pred_data_et['Elevation'])
     pred_swe_et = mapping(obs_lon, obs_lat, pred_lon_et, pred_lat_et, pred_data_et['predicted_swe'])
     
     #print('pred_swe_mseloss', np.nanmin(pred_swe_mseloss), np.nanmax(pred_swe_mseloss))
@@ -87,27 +87,27 @@ for date in target_dates:
     all_lon = np.append(all_lon, obs_lon)
     all_lat = np.append(all_lat, obs_lat)
     all_elv = np.append(all_elv, pred_elv)
-    all_pred_mseloss = np.append(all_pred_mseloss, pred_swe_mseloss)
-    all_pred_sweloss = np.append(all_pred_sweloss, pred_swe_sweloss)
-    all_pred_rmseloss = np.append(all_pred_rmseloss, pred_swe_rmseloss)
-    #all_pred_et = np.append(all_pred_et, pred_swe_et)
-    daily_obs += [obs_swe]
-    daily_pred_mseloss += [pred_swe_mseloss]
-    daily_pred_sweloss += [pred_swe_sweloss]
-    daily_pred_rmseloss += [pred_swe_rmseloss]
-    daily_pred_et += [pred_swe_et]
+    #all_pred_mseloss = np.append(all_pred_mseloss, pred_swe_mseloss)
+    #all_pred_sweloss = np.append(all_pred_sweloss, pred_swe_sweloss)
+    #all_pred_rmseloss = np.append(all_pred_rmseloss, pred_swe_rmseloss)
+    all_pred_et = np.append(all_pred_et, pred_swe_et)
+    #daily_obs += [obs_swe]
+    #daily_pred_mseloss += [pred_swe_mseloss]
+    #daily_pred_sweloss += [pred_swe_sweloss]
+    #daily_pred_rmseloss += [pred_swe_rmseloss]
+    #daily_pred_et += [pred_swe_et]
 
     del [date_idx, obs_lon, obs_lat, obs_id, obs_swe]
-    del [pred_data, pred_lon, pred_lat, pred_elv, pred_swe_mseloss, pred_swe_sweloss, pred_swe_rmseloss]
-    #del [pred_data_et, pred_lon_et, pred_lat_et, pred_elv, pred_swe_et]
+    #del [pred_data, pred_lon, pred_lat, pred_elv, pred_swe_mseloss, pred_swe_sweloss, pred_swe_rmseloss]
+    del [pred_data_et, pred_lon_et, pred_lat_et, pred_elv, pred_swe_et]
 
-print('\n------ Plotting daily boxplots...')
-plot_daily_boxplot(
-    daily_obs,
-    [daily_pred_mseloss, daily_pred_sweloss, daily_pred_rmseloss, daily_pred_et],
-    target_dates,
-    outdir_sweloss
-)
+#print('\n------ Plotting daily boxplots...')
+#plot_daily_boxplot(
+#    daily_obs,
+#    [daily_pred_mseloss, daily_pred_sweloss, daily_pred_rmseloss, daily_pred_et],
+#    target_dates,
+#    outdir_sweloss
+#)
 del [daily_pred_mseloss, daily_pred_sweloss, daily_pred_rmseloss, daily_pred_et]
 
 all_data = pd.DataFrame(data={
@@ -116,39 +116,40 @@ all_data = pd.DataFrame(data={
     'site_lon': all_lon,
     'site_lat': all_lat,
     'site_elv': all_elv,
-    'pred_swe_mseloss': all_pred_mseloss,
-    'pred_swe_sweloss': all_pred_sweloss,
-    'pred_swe_rmseloss': all_pred_rmseloss
-    #'pred_swe_et': all_pred_et
+    #'pred_swe_mseloss': all_pred_mseloss,
+    #'pred_swe_sweloss': all_pred_sweloss,
+    #'pred_swe_rmseloss': all_pred_rmseloss
+    'pred_swe_et': all_pred_et
 })
 all_data = all_data.dropna()
 print('\n------ Final paired data:')
 print('Num of data points:', len(all_data))
 
-plot_scatter(
-    all_data['obs_swe'],
-    all_data['pred_swe_mseloss'],
-    'GCN_MSELoss',
-    outdir_mseloss,
-)
-plot_scatter(
-    all_data['obs_swe'],
-    all_data['pred_swe_sweloss'],
-    'GCN_SWELoss',
-    outdir_sweloss,
-)
-plot_scatter(
-    all_data['obs_swe'],
-    all_data['pred_swe_rmseloss'],
-    'GCN_RMSELoss',
-    outdir_rmseloss,
-)
 #plot_scatter(
 #    all_data['obs_swe'],
-#    all_data['pred_swe_et'],
-#    'ExtraTree',
-#    outdir_et,
+#    all_data['pred_swe_mseloss'],
+#    'GCN_MSELoss',
+#    outdir_mseloss,
 #)
+#plot_scatter(
+#    all_data['obs_swe'],
+#    all_data['pred_swe_sweloss'],
+#    'GCN_SWELoss',
+#    outdir_sweloss,
+#)
+#plot_scatter(
+#    all_data['obs_swe'],
+#    all_data['pred_swe_rmseloss'],
+#    'GCN_RMSELoss',
+#    outdir_rmseloss,
+#)
+plot_scatter(
+    all_data['obs_swe'],
+    all_data['pred_swe_et'],
+    'ExtraTree',
+    outdir_et,
+)
+exit()
 
 ## Site based analysis
 print('\n------------------------------------')
@@ -163,7 +164,7 @@ sitelist = all_data.groupby(['site_id']).agg(
 print('Selected sites: num =', len(sitelist))
 print(sitelist)
 
-plot_avg_swe_map(sitelist, '/groups/ESS/whung/swe_gnn/data')
+#plot_avg_swe_map(sitelist, '/groups/ESS/whung/swe_gnn/data')
 
 r2_sites = {'mseloss': [], 'sweloss': [], 'rmseloss': [], 'et': []}
 rmse_sites = {'mseloss': [], 'sweloss': [], 'rmseloss': [], 'et': []}
@@ -210,14 +211,14 @@ stats['rmse_GCN_RMSELoss'] = rmse_sites['rmseloss']
 #print(stats)
 
 print('\n------ Saving table as csv file...')
-stats.to_csv(stats_output_sweloss, index=False)
+#stats.to_csv(stats_output_sweloss, index=False)
 #stats.to_csv(stats_output_et, index=False)
 print('------ Table saved!')
 
 print('\n------ Plotting stats maps...')
-plot_stats_map(stats, 'GCN_MSELoss', outdir_mseloss)
-plot_stats_map(stats, 'GCN_SWELoss', outdir_sweloss)
-plot_stats_map(stats, 'GCN_RMSELoss', outdir_rmseloss)
+#plot_stats_map(stats, 'GCN_MSELoss', outdir_mseloss)
+#plot_stats_map(stats, 'GCN_SWELoss', outdir_sweloss)
+#plot_stats_map(stats, 'GCN_RMSELoss', outdir_rmseloss)
 #plot_stats_map(stats, 'ExtraTree', outdir_et)
 print('------ Map saved!')
 
@@ -229,9 +230,9 @@ plot_elv_r2_rmse(stats, 'GCN_RMSELoss', outdir_rmseloss)
 print('------ Plot saved!')
 
 print('\n------ Plotting rmse-r2-swe plots...')
-plot_rmse_r2_swe(stats, 'GCN_MSELoss', outdir_mseloss)
-plot_rmse_r2_swe(stats, 'GCN_SWELoss', outdir_sweloss)
-plot_rmse_r2_swe(stats, 'GCN_RMSELoss', outdir_rmseloss)
+#plot_rmse_r2_swe(stats, 'GCN_MSELoss', outdir_mseloss)
+#plot_rmse_r2_swe(stats, 'GCN_SWELoss', outdir_sweloss)
+#plot_rmse_r2_swe(stats, 'GCN_RMSELoss', outdir_rmseloss)
 #plot_rmse_r2_swe(stats, 'ExtraTree', outdir_et)
 print('------ Plot saved!')
 exit()
@@ -298,6 +299,3 @@ print('\n------ Saving table as csv file...')
 #stats.to_csv('/groups/ESS/whung/swe_gnn/data/all_snotel_cdec_stations_prediction_elevation_stats_v2.csv', index=False)
 stats.to_csv('/groups/ESS/whung/swe_gnn/data/all_snotel_cdec_stations_prediction_elevation_stats_et.csv', index=False)
 print('------ Table saved!')
-
-
- 

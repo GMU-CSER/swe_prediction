@@ -281,7 +281,7 @@ class SWELoss(nn.Module):
         # Compute L2 difference
         loss = torch.mean((curve_pred - ref_curve) ** 2)
 
-        print(f"\n[HypsometryDiscrepancy] <<< Final loss: {loss.item():.6f}\n")
+        #print(f"\n[HypsometryDiscrepancy] <<< Final loss: {loss.item():.6f}\n")
         #sys.exit(1)
         return loss
 
@@ -297,6 +297,7 @@ class SWELoss(nn.Module):
             try:
                 seeds = batch.batch_size if hasattr(batch, 'batch_size') else y_pred.shape[0]
                 phys = self._hypsometry_discrepancy(y_pred, y_true, batch, seeds)
+                #print(self.hypsometry_weight)
                 #print(base)
                 #print(phys)
                 #sys.exit(1)
@@ -418,7 +419,7 @@ class SWEPhaseConstraintLoss(nn.Module):
 CONFIG = {
     'data_path': '/groups/ESS/whung/swe_gnn/data/gnn_training_data.pt',
     'model_params': {
-        'in_channels': 88, # 88
+        'in_channels': 84, # 88
         'hidden_channels': 64,
         'out_channels': 1,
         'num_heads': 4,
@@ -441,7 +442,7 @@ CONFIG = {
         }
     },
     'visualization': {
-        'save_dir': '/groups/ESS/whung/swe_gnn/results_sweloss_elv',
+        'save_dir': '/groups/ESS/whung/swe_gnn/results_sweloss_elv_precip',
         'figsize': (12, 8),
         'dpi': 300
     }
@@ -1002,22 +1003,24 @@ def calculate_metrics(y_pred: torch.Tensor, y_true: torch.Tensor) -> Dict[str, f
 
 def plot_model_results(y_pred: torch.Tensor, y_true: torch.Tensor, model_name: str = "Model", save_path: str = None):
     ## move tensor to cpu before plotting
-    X = y_true.cpu().numpy()
-    Y = y_pred.cpu().numpy()
+    X = y_true.cpu().numpy() * 0.0254  # inch -> meter
+    Y = y_pred.cpu().numpy() * 0.0254  # inch -> meter
 
-    tick_limit = np.ceil(np.max([X.max(), Y.max()]))
+    #tick_limit = np.ceil(np.max([X.max(), Y.max()]))
+    tick_limit = 2.5
 
-    plt.figure(figsize=(10, 10))
-    plt.plot(np.arange(tick_limit),
-        np.arange(tick_limit),
+    fig, ax = plt.subplots(figsize=(10, 10))    # unit=100pixel
+    ax.tick_params(labelsize=24)
+    plt.plot(np.arange(0, tick_limit+0.1, 0.5),
+        np.arange(0, tick_limit+0.1, 0.5),
         linewidth=1,
         linestyle=':',
         color='k'
     )
     plt.scatter(X, Y, s=30)
-    plt.title(f'Result Comparison ({model_name})')
-    plt.xlabel('Observation')
-    plt.ylabel(f'Model: {model_name}')
+    plt.title(f'Result Comparison ({model_name})', fontsize=24)
+    plt.xlabel('Observation', fontsize=24)
+    plt.ylabel(f'Model: {model_name}', fontsize=24)
     plt.xlim([0, tick_limit])
     plt.ylim([0, tick_limit])
     plt.grid(True, axis='y')
@@ -1755,17 +1758,18 @@ def main():
         # 使用增强的 SWELoss（如无参考曲线则自动退化为 RMSE 行为）
         loss_fn = SWELoss(
             base_weight=1.0,
-            hypsometry_weight=100.0,  # 可根据需要在 CONFIG 中暴露
+            hypsometry_weight=10.0,  # 可根据需要在 CONFIG 中暴露
             elevation_feature_index=3,  # 若高程在 x 的列索引已知，可填写索引
-            temperature_feature_index=6,
-            precipitation_feature_index=49,
-            elevation_curve_weight=1.0,
+            temperature_feature_index=5,
+            precipitation_feature_index=48,
+            elevation_curve_weight=0.5,
             temperature_curve_weight=0.0,
-            precipitation_curve_weight=0.0,
+            precipitation_curve_weight=0.5,
             area_feature_index=None,
             num_bins=20,
         )
         #loss_fn = nn.MSELoss()
+        #loss_fn = RMSELoss()
         #loss_fn = SWEPhaseConstraintLoss()
 
         # 训练模型
@@ -1791,6 +1795,7 @@ def main():
             save_dir / f'{model_name}_result_comparison.png',
             plot_option=True
         )
+        sys.exit(1)
         print(f"{model_name} Test Metrics:")
         print(f"  R²: {test_metrics[model_name]['r2']:.4f}")
         print(f"  RMSE: {test_metrics[model_name]['rmse']:.4f}")
@@ -1798,7 +1803,7 @@ def main():
         # 保存模型
         #model_save_path = '/projects/kzhou6/bcui2/git_submit/SWE_25/model/' + f"{model_name}_model.pth"
         #model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_v2.pth"
-        model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_sweloss_elv.pth"
+        model_save_path = '/groups/ESS/whung/swe_gnn/model/' + f"{model_name}_model_sweloss_precip.pth"
         save_model(model, model_save_path)
 
     # 停止资源监控

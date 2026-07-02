@@ -12,7 +12,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 from eval_util import input_density_plot
 
 train_file_path = '/groups/ESS/whung/swe_gnn/data/all_points_final_merged_training_snodas_mask_resnet_all_batch.csv'
-test_file_date = '2025-03-26'
+test_file_date = '2025-01-15'
 test_file_path = f'/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_{test_file_date}_merged.csv_snodas_mask.csv'
 #test_file_path = '/groups/ESS/whung/swe_gnn/data/test_data_predicted_latest_2025-01-15.csv_snodas_mask.csv'
 
@@ -20,7 +20,8 @@ chunksize = 500000
 
 # 📋 Intended columns
 
-intended_columns = ['lat', 'lon', 'date', 'precipitation_amount', 'relative_humidity_rmin', 'potential_evapotranspiration', 
+intended_columns = ['lat', 'lon', 'date',
+                    'precipitation_amount', 'relative_humidity_rmin', 'potential_evapotranspiration', 
                     'air_temperature_tmmx', 'relative_humidity_rmax', 'mean_vapor_pressure_deficit',
                     'air_temperature_tmmn', 'wind_speed', 'Elevation', 'Aspect', 'Curvature', 'Northness', 
                     'Eastness', 'fsca', 'Slope', 'air_temperature_tmmn_1', 'potential_evapotranspiration_1',
@@ -40,7 +41,7 @@ intended_columns = ['lat', 'lon', 'date', 'precipitation_amount', 'relative_humi
                     'relative_humidity_rmin_6', 'precipitation_amount_6', 'air_temperature_tmmx_6', 'wind_speed_6', 
                     'fsca_6', 'air_temperature_tmmn_7', 'potential_evapotranspiration_7',
                     'mean_vapor_pressure_deficit_7', 'relative_humidity_rmax_7', 'relative_humidity_rmin_7', 
-                    'precipitation_amount_7', 'air_temperature_tmmx_7', 'wind_speed_7', 'fsca_7', 'water_year', 'snodas_mask']
+                    'precipitation_amount_7', 'air_temperature_tmmx_7', 'wind_speed_7', 'fsca_7', 'water_year', 'snodas_mask']  # 'station_name'
 
 # 🔍 Check available columns
 print("Checking available columns in train CSV...")
@@ -95,11 +96,32 @@ if 'swe_value' not in test_data_temp.columns:
 
 test_data = test_data_temp[select_columns]
 
+#for test_file_date in ['2025-01-01', '2025-01-08', '2025-01-15', '2025-01-22', '2025-02-05', '2025-02-12', '2025-02-19', '2025-02-26', '2025-02-05', '2025-02-12', '2025-02-19', '2025-02-26']:
+#    test_file_path = f'/groups/ESS/whung/swe_gnn/data/testing_snodas_mask/testing_all_ready_{test_file_date}_merged.csv_snodas_mask.csv'
+#    test_data_temp = pd.read_csv(test_file_path)
+#    test_data_temp.dropna(subset=['date'], inplace=True)
+#    if 'swe_value' not in test_data_temp.columns:
+#        test_data_temp = test_data_temp.assign(swe_value=pd.NA)
+#    
+#    if 'test_data' not in locals():
+#        test_data = test_data_temp[select_columns]
+#    else:
+#        test_data = pd.concat([test_data, test_data_temp[select_columns]], ignore_index=True)
+#    print(test_file_path, test_data.shape)
+#    del [test_file_path, test_data_temp]
+
 if 'date' in test_data.columns:
     test_data['date'] = pd.to_datetime(test_data['date'], errors='coerce')
     test_data['day_of_year'] = test_data['date'].dt.dayofyear
 else:
     test_data['day_of_year'] = 1
+
+
+# Remove fake zero-SWE sites
+#train_data.loc[train_data['station_name'] == '0', 'station_name'] = 0
+#train_data = train_data.loc[train_data.station_name!=0] 
+#train_data = train_data.drop(columns=['station_name'])
+
 
 # 🧮 Binning
 grid_size = 0.01
@@ -114,7 +136,7 @@ test_data['lon_bin'] = (test_data['lon'] // grid_size).astype(int)
 test_data['grid_id'] = test_data['lat_bin'].astype(str) + "_" + test_data['lon_bin'].astype(str) + "_" + test_data['day_of_year'].astype(str)
 
 # 📦 Aggregation
-agg_cols = {col: 'mean' for col in select_columns if col not in ['date', 'lat', 'lon']}
+agg_cols = {col: 'mean' for col in select_columns if col not in ['date', 'lat', 'lon', 'station_name']}
 agg_cols.update({'lat': 'mean', 'lon': 'mean', 'day_of_year': 'mean'})
 #agg_cols.update({'lat': 'mean', 'lon': 'mean'})
 if 'date' in select_columns:
@@ -131,27 +153,39 @@ train_merged_nodes.loc[train_merged_nodes['Elevation'] < 0, 'Elevation'] = np.na
 train_merged_nodes.loc[train_merged_nodes['Slope'] <= 0, 'Slope'] = np.nan
 train_merged_nodes = train_merged_nodes.dropna()
 
-test_merged_nodes.loc[test_merged_nodes['air_temperature_tmmx'] < 250, 'air_temperature_tmmx'] = np.nan
-test_merged_nodes.loc[test_merged_nodes['air_temperature_tmmn'] < 250, 'air_temperature_tmmn'] = np.nan
-test_merged_nodes.loc[test_merged_nodes['Elevation'] < 0, 'Elevation'] = np.nan
-test_merged_nodes.loc[test_merged_nodes['Slope'] <= 0, 'Slope'] = np.nan
-#test_merged_nodes = test_merged_nodes.dropna()
-
+idx0 = test_merged_nodes.index[test_merged_nodes['air_temperature_tmmx'] < 250]
+idx1 = test_merged_nodes.index[test_merged_nodes['air_temperature_tmmn'] < 250]
+idx2 = test_merged_nodes.index[test_merged_nodes['Elevation'] < 0]
+idx3 = test_merged_nodes.index[test_merged_nodes['Slope'] <= 0]
+idx = np.append(np.append(np.append(idx0, idx1), idx2), idx3)
+idx = np.unique(idx)
+test_merged_nodes = test_merged_nodes.drop(idx)
 
 # input verification
 # temp_avg is only used for value checking
-train_merged_nodes['temp_avg'] = (train_merged_nodes['air_temperature_tmmx']+train_merged_nodes['air_temperature_tmmn'])/2
-train_merged_nodes.loc[train_merged_nodes['temp_avg'] == 0, 'temp_avg'] = np.nan
+#train_merged_nodes['temp_avg'] = (train_merged_nodes['air_temperature_tmmx']+train_merged_nodes['air_temperature_tmmn'])/2
+#train_merged_nodes.loc[train_merged_nodes['temp_avg'] == 0, 'temp_avg'] = np.nan
+#
+#test_merged_nodes['temp_avg'] = (test_merged_nodes['air_temperature_tmmx']+test_merged_nodes['air_temperature_tmmn'])/2
+#test_merged_nodes.loc[test_merged_nodes['temp_avg'] == 0, 'temp_avg'] = np.nan
 
-print('swe', train_merged_nodes['swe_value'].min(), train_merged_nodes['swe_value'].max())
-print('temp', train_merged_nodes['temp_avg'].min(), train_merged_nodes['temp_avg'].max())
-print('precip', train_merged_nodes['precipitation_amount'].min(), train_merged_nodes['precipitation_amount'].max())
-print('elv', train_merged_nodes['Elevation'].min(), train_merged_nodes['Elevation'].max())
+#print('---- Train set')
+#print('swe', train_merged_nodes['swe_value'].min(), train_merged_nodes['swe_value'].max())
+#print('temp', train_merged_nodes['temp_avg'].min(), train_merged_nodes['temp_avg'].max())
+#print('precip', train_merged_nodes['precipitation_amount'].min(), train_merged_nodes['precipitation_amount'].max())
+#print('elv', train_merged_nodes['Elevation'].min(), train_merged_nodes['Elevation'].max())
+#
+#print('---- Test set')
+#print('swe', test_merged_nodes['swe_value'].min(), test_merged_nodes['swe_value'].max())
+#print('temp', test_merged_nodes['temp_avg'].min(), test_merged_nodes['temp_avg'].max())
+#print('precip', test_merged_nodes['precipitation_amount'].min(), test_merged_nodes['precipitation_amount'].max())
+#print('elv', test_merged_nodes['Elevation'].min(), test_merged_nodes['Elevation'].max())
 
-#plot_var_list = ['lat', 'lon', 'Elevation', 'Aspect', 'Curvature', 'Eastness', 'Northness', 'Slope', 'temp_avg', 'mean_vapor_pressure_deficit', 'potential_evapotranspiration', 'precipitation_amount', 'relative_humidity_rmax', 'wind_speed', 'day_of_year', 'water_year', 'swe_value']
-#plot_label_list = ['Lat', 'Lon', 'ELV', 'Aspect', 'Curvature', 'Eastness', 'Northness', 'Slope', 'TEMP', 'VPD', 'Evapo', 'PRECIP', 'RH', 'WS', 'DOY', 'Water_year', 'SWE']
+#plot_var_list = ['lat', 'lon', 'Elevation', 'Aspect', 'Curvature', 'Eastness', 'Northness', 'Slope', 'temp_avg', 'mean_vapor_pressure_deficit', 'potential_evapotranspiration', 'precipitation_amount', 'relative_humidity_rmax', 'wind_speed', 'day_of_year', 'water_year', 'fsca', 'swe_value']
+#plot_label_list = ['Lat', 'Lon', 'ELV', 'Aspect', 'Curvature', 'Eastness', 'Northness', 'Slope', 'TEMP', 'VPD', 'Evapo', 'PRECIP', 'RH', 'WS', 'DOY', 'Water_year', 'Fsca', 'SWE']
 #for var, label in zip(plot_var_list, plot_label_list):
-#    input_density_plot(train_merged_nodes[var], label, '/groups/ESS/whung/swe_gnn/data/input_density')
+#    #input_density_plot(train_merged_nodes[var], label, '/groups/ESS/whung/swe_gnn/data/input_density')
+#    input_density_plot(test_merged_nodes[var], label, '/groups/ESS/whung/swe_gnn/data/input_density')
 #exit()
 
 
@@ -178,7 +212,7 @@ test_merged_nodes['sin_lon'] = np.sin(test_merged_nodes['lon_rad'])
 test_merged_nodes['cos_lon'] = np.cos(test_merged_nodes['lon_rad'])
 
 # 🧪 Final feature selection
-exclude = ['grid_id', 'lat', 'lon', 'lat_rad', 'lon_rad', 'date', 'day_of_year', 'swe_value', 'water_year', 'temp_avg']
+exclude = ['grid_id', 'lat', 'lon', 'lat_rad', 'lon_rad', 'date', 'day_of_year', 'swe_value', 'water_year', 'temp_avg', 'Slope']
 final_columns = [col for col in train_merged_nodes.columns if col not in exclude]
 final_columns = np.sort(final_columns).tolist()   # make sure columns always have the same order 
 #final_columns += ['sin_lat', 'cos_lat', 'sin_lon', 'cos_lon', 'sin_day', 'cos_day']
@@ -202,7 +236,6 @@ test_df_scaled = pd.DataFrame(test_node_features_scaled, columns=final_columns)
 #print(f"Dropping highly correlated features: {to_drop}")
 #train_df_scaled.drop(columns=to_drop, inplace=True)
 #print(f"The remaining features are ({len(train_df_scaled.columns)}): {train_df_scaled.columns}")
-
 #test_df_scaled.drop(columns=to_drop, inplace=True)
 #print(f"The remaining features are ({len(test_df_scaled.columns)}): {test_df_scaled.columns}")
 
